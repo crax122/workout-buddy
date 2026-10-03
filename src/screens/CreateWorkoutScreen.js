@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveTemplate } from '../services/db';
 
 export default function CreateWorkoutScreen() {
   const navigation = useNavigation();
@@ -85,8 +85,6 @@ export default function CreateWorkoutScreen() {
     setNewExerciseName(ex.name);
     setNewRestInput(String(ex.restTime || 60));
     
-    // Convert targetReps array back to a string for easy editing
-    // If all reps are the same, we can do something like `3x10`
     const allSame = ex.targetReps.every(r => r === ex.targetReps[0]);
     if (allSame && ex.targetReps.length > 0) {
       setNewSetsInput(`${ex.targetReps.length}x${ex.targetReps[0]}`);
@@ -107,27 +105,24 @@ export default function CreateWorkoutScreen() {
     }
 
     try {
-      const stored = await AsyncStorage.getItem('@workout_templates');
-      let templates = stored ? JSON.parse(stored) : [];
-      
       const newTemplate = {
         id: workoutId ? workoutId : Date.now().toString(),
         name: workoutName,
         exercises: exercises
       };
       
-      if (workoutId) {
-        // Update existing
-        templates = templates.map(t => t.id === workoutId ? newTemplate : t);
+      const success = await saveTemplate(newTemplate, workoutId);
+      
+      if (success) {
+        if (!workoutId) {
+          setWorkoutId(newTemplate.id);
+        }
+        Alert.alert('Success', 'Workout template saved!');
+        return true;
       } else {
-        templates.unshift(newTemplate);
-        // setWorkoutId for future saves in this session
-        setWorkoutId(newTemplate.id);
+        Alert.alert('Error', 'Failed to save workout to cloud.');
+        return false;
       }
-
-      await AsyncStorage.setItem('@workout_templates', JSON.stringify(templates));
-      Alert.alert('Success', 'Workout template saved!');
-      return true;
     } catch(e) {
       console.error("Failed to save template", e);
       Alert.alert('Error', 'Failed to save workout');

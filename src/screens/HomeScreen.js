@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import { getTemplates, getHistory, clearHistory as dbClearHistory } from '../services/db';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const [savedWorkouts, setSavedWorkouts] = useState([]);
-
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -18,42 +19,34 @@ export default function HomeScreen() {
   }, [isFocused]);
 
   const loadWorkouts = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@workout_templates');
-      if (stored) {
-        setSavedWorkouts(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load workouts", e);
-    }
+    const templates = await getTemplates();
+    setSavedWorkouts(templates);
   };
 
   const loadHistory = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@workout_history');
-      if (stored) {
-        setHistory(JSON.parse(stored));
-      } else {
-        setHistory([]);
-      }
-    } catch (e) {
-      console.error("Failed to load history", e);
-    }
+    const h = await getHistory();
+    // Sort history by date if you want, assuming date string format can be sorted, or let's reverse it to show newest first
+    setHistory(h.reverse());
   };
 
   const clearHistory = async () => {
-    try {
-      await AsyncStorage.removeItem('@workout_history');
+    const success = await dbClearHistory();
+    if (success) {
       setHistory([]);
-    } catch (e) {
-      console.error("Failed to clear history", e);
     }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Workout Buddy</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={{color: '#ff4d4d', fontWeight: 'bold'}}>Logout</Text>
+        </TouchableOpacity>
       </View>
       
       <View style={styles.actionRow}>
@@ -122,7 +115,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
-  header: { alignItems: 'center', marginVertical: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#0bc0af' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   startBtn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

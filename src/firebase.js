@@ -1,0 +1,19 @@
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+const firebaseConfig = {
+  projectId: "workout-buddy-jfg-db",
+  appId: "1:1041900440840:web:930a0ae045367b06ddf0bd",
+  storageBucket: "workout-buddy-jfg-db.firebasestorage.app",
+  apiKey: "AIzaSyB6k6xPQHEFtfm7-EEoEXBWHBbjyUXN51I",
+  authDomain: "workout-buddy-jfg-db.firebaseapp.com",
+  messagingSenderId: "1041900440840",
+  projectNumber: "1041900440840"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export { app, auth, db };

@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveHistory as dbSaveHistory } from '../services/db';
 
 export default function SummaryScreen() {
   const navigation = useNavigation();
@@ -33,22 +33,15 @@ export default function SummaryScreen() {
   }, []);
 
   const saveHistory = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@workout_history');
-      let history = stored ? JSON.parse(stored) : [];
-      
-      history.unshift({
-        id: Date.now().toString(),
-        date: new Date().toLocaleDateString(),
-        name: workoutName,
-        volume: totalVolume,
-        exercises: exercises
-      });
-      
-      await AsyncStorage.setItem('@workout_history', JSON.stringify(history));
-    } catch (e) {
-      console.error("Failed to save history", e);
-    }
+    const historyItem = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString(),
+      name: workoutName,
+      volume: totalVolume,
+      exercises: exercises
+    };
+    
+    await dbSaveHistory(historyItem);
   };
 
   return (
