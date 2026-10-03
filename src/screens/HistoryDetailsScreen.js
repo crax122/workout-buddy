@@ -47,15 +47,15 @@ export default function HistoryDetailsScreen() {
       </View>
 
       <View style={{flexDirection: 'row', gap: 15, marginBottom: 60}}>
-        <TouchableOpacity style={[styles.backBtn, {flex: 1, marginBottom: 0, backgroundColor: '#ff4d4d'}]} onPress={() => {
-          Alert.alert("Supprimer", "Détruire cet historique ?", [
-            { text: "Annuler", style: "cancel" },
-            { text: "Oui", onPress: async () => {
-                await deleteHistoryItem(historyItem.id);
-                navigation.navigate('Home');
-              }
+        <TouchableOpacity style={[styles.backBtn, {flex: 1, marginBottom: 0, backgroundColor: '#ff4d4d'}]} onPress={async () => {
+          if (window.confirm("Détruire cet historique ?")) {
+            const success = await deleteHistoryItem(historyItem.id);
+            if (success) {
+              navigation.navigate('Home');
+            } else {
+              window.alert("Erreur lors de la suppression");
             }
-          ]);
+          }
         }}>
           <Text style={styles.backBtnTxt}>SUPPRIMER</Text>
         </TouchableOpacity>

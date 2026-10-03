@@ -110,19 +110,15 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={{padding: 25, backgroundColor: '#ffe6e6', borderRadius: 15}}
-            onPress={() => {
-              Alert.alert(
-                "Supprimer", 
-                "Voulez-vous vraiment supprimer cet historique ?",
-                [
-                  { text: "Annuler", style: "cancel" },
-                  { text: "Oui", onPress: async () => {
-                      const success = await deleteHistoryItem(item.id);
-                      if (success) loadHistory();
-                    } 
-                  }
-                ]
-              );
+            onPress={async () => {
+              if (window.confirm("Voulez-vous vraiment supprimer cet historique ?")) {
+                const success = await deleteHistoryItem(item.id);
+                if (success) {
+                  loadHistory();
+                } else {
+                  window.alert("Erreur lors de la suppression");
+                }
+              }
             }}
           >
             <Text style={{fontSize: 36, color: '#ff4d4d'}}>❌</Text>
