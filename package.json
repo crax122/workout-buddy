@@ -26,7 +26,7 @@
     "web": "expo start --web",
     "postinstall": "sed -i 's/enableStandaloneFuseboxShell: !(0, _env.envIsHeadless)()/enableStandaloneFuseboxShell: false/' node_modules/expo/node_modules/@expo/cli/build/src/start/server/metro/debugging/createDebugMiddleware.js || true",
     "predeploy": "npx expo export -p web && touch dist/.nojekyll",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist -t"
   },
   "private": true,
   "devDependencies": {

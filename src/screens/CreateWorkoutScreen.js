@@ -59,10 +59,10 @@ export default function CreateWorkoutScreen() {
     setExercises(exercises.filter(ex => ex.id !== id));
   };
 
-  const handleStart = async () => {
+  const handleSave = async () => {
     if (exercises.length === 0) {
       Alert.alert('Error', 'Please add at least one exercise.');
-      return;
+      return false;
     }
 
     try {
@@ -78,11 +78,22 @@ export default function CreateWorkoutScreen() {
       
       templates.unshift(newTemplate);
       await AsyncStorage.setItem('@workout_templates', JSON.stringify(templates));
+      Alert.alert('Success', 'Workout template saved!');
+      return true;
     } catch(e) {
       console.error("Failed to save template", e);
+      Alert.alert('Error', 'Failed to save workout');
+      return false;
     }
+  };
 
-    navigation.navigate('ActiveWorkout', { workoutName, exercises });
+  const handleStart = async () => {
+    // Optionally save before starting, but since the user can save explicitly, we'll just navigate
+    // Actually, we probably still want to save when they start so they don't lose it if they didn't click save.
+    const saved = await handleSave();
+    if (saved) {
+      navigation.navigate('ActiveWorkout', { workoutName, exercises });
+    }
   };
 
   return (
@@ -135,6 +146,10 @@ export default function CreateWorkoutScreen() {
         ))}
       </View>
 
+      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+        <Text style={styles.saveBtnTxt}>SAVE WORKOUT TEMPLATE</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
         <Text style={styles.startBtnTxt}>START WORKOUT</Text>
       </TouchableOpacity>
@@ -164,6 +179,8 @@ const styles = StyleSheet.create({
   exName: { fontSize: 16, fontWeight: 'bold' },
   exDetails: { fontSize: 14, color: '#666' },
   removeBtn: { fontSize: 18, color: '#ff4d4d' },
+  saveBtn: { backgroundColor: '#ff9800', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
+  saveBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   startBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
   startBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 40 },
