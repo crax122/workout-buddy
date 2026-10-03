@@ -81,11 +81,18 @@ export default function HomeScreen() {
       {savedWorkouts.map(workout => (
         <View key={workout.id} style={styles.savedCard}>
           <Text style={styles.savedTitle}>{workout.name}</Text>
-          <TouchableOpacity 
-            style={styles.launchBtn}
-            onPress={() => navigation.navigate('ActiveWorkout', { workoutName: workout.name, exercises: workout.exercises })}>
-            <Text style={styles.launchBtnTxt}>▶ START</Text>
-          </TouchableOpacity>
+          <View style={{flexDirection: 'row', gap: 10}}>
+            <TouchableOpacity 
+              style={[styles.launchBtn, {backgroundColor: '#ff9800'}]}
+              onPress={() => navigation.navigate('CreateWorkout', { editWorkout: workout })}>
+              <Text style={styles.launchBtnTxt}>✏️ EDIT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.launchBtn}
+              onPress={() => navigation.navigate('ActiveWorkout', { workoutName: workout.name, exercises: workout.exercises })}>
+              <Text style={styles.launchBtnTxt}>▶ START</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ))}
 

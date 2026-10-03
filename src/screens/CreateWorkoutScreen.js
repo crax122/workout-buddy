@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CreateWorkoutScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  
+  const [workoutId, setWorkoutId] = useState(null);
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [exercises, setExercises] = useState([]);
+  
   const [newExerciseName, setNewExerciseName] = useState('');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
+  const [editIndex, setEditIndex] = useState(null);
+
+  useEffect(() => {
+    if (route.params?.editWorkout) {
+      const w = route.params.editWorkout;
+      setWorkoutId(w.id);
+      setWorkoutName(w.name);
+      setExercises(w.exercises || []);
+    }
+  }, [route.params?.editWorkout]);
 
   const parseSets = (input) => {
     const parts = input.split(',').map(s => s.trim());
@@ -42,17 +56,40 @@ export default function CreateWorkoutScreen() {
     }
     
     const newEx = {
-      id: Date.now().toString(),
+      id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
       name: newExerciseName.trim(),
       sets: parsedTargetSets.length,
       targetReps: parsedTargetSets,
       completedSets: 0,
-      prev: 'No previous data',
+      prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
       completed: false
     };
 
-    setExercises([...exercises, newEx]);
+    if (editIndex !== null) {
+      const updated = [...exercises];
+      updated[editIndex] = newEx;
+      setExercises(updated);
+      setEditIndex(null);
+    } else {
+      setExercises([...exercises, newEx]);
+    }
     setNewExerciseName('');
+    setNewSetsInput('3x10');
+  };
+
+  const handleEditExercise = (index) => {
+    const ex = exercises[index];
+    setNewExerciseName(ex.name);
+    
+    // Convert targetReps array back to a string for easy editing
+    // If all reps are the same, we can do something like `3x10`
+    const allSame = ex.targetReps.every(r => r === ex.targetReps[0]);
+    if (allSame && ex.targetReps.length > 0) {
+      setNewSetsInput(`${ex.targetReps.length}x${ex.targetReps[0]}`);
+    } else {
+      setNewSetsInput(ex.targetReps.join(', '));
+    }
+    setEditIndex(index);
   };
 
   const handleRemoveExercise = (id) => {
@@ -66,17 +103,24 @@ export default function CreateWorkoutScreen() {
     }
 
     try {
-      // Save workout template
       const stored = await AsyncStorage.getItem('@workout_templates');
       let templates = stored ? JSON.parse(stored) : [];
       
       const newTemplate = {
-        id: Date.now().toString(),
+        id: workoutId ? workoutId : Date.now().toString(),
         name: workoutName,
         exercises: exercises
       };
       
-      templates.unshift(newTemplate);
+      if (workoutId) {
+        // Update existing
+        templates = templates.map(t => t.id === workoutId ? newTemplate : t);
+      } else {
+        templates.unshift(newTemplate);
+        // setWorkoutId for future saves in this session
+        setWorkoutId(newTemplate.id);
+      }
+
       await AsyncStorage.setItem('@workout_templates', JSON.stringify(templates));
       Alert.alert('Success', 'Workout template saved!');
       return true;
@@ -126,7 +170,7 @@ export default function CreateWorkoutScreen() {
           placeholder="e.g. 10,10,5 or 3x10"
         />
         <TouchableOpacity style={styles.addBtn} onPress={handleAddExercise}>
-          <Text style={styles.addBtnTxt}>+ ADD EXERCISE</Text>
+          <Text style={styles.addBtnTxt}>{editIndex !== null ? "UPDATE EXERCISE" : "+ ADD EXERCISE"}</Text>
         </TouchableOpacity>
       </View>
 
@@ -135,13 +179,18 @@ export default function CreateWorkoutScreen() {
         {exercises.length === 0 && <Text style={styles.emptyText}>No exercises added yet.</Text>}
         {exercises.map((ex, index) => (
           <View key={ex.id} style={styles.exCard}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
               <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets)</Text>
             </View>
-            <TouchableOpacity onPress={() => handleRemoveExercise(ex.id)}>
-              <Text style={styles.removeBtn}>❌</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 15 }}>
+              <TouchableOpacity onPress={() => handleEditExercise(index)}>
+                <Text style={styles.editBtn}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleRemoveExercise(ex.id)}>
+                <Text style={styles.removeBtn}>❌</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
@@ -179,6 +228,7 @@ const styles = StyleSheet.create({
   exName: { fontSize: 16, fontWeight: 'bold' },
   exDetails: { fontSize: 14, color: '#666' },
   removeBtn: { fontSize: 18, color: '#ff4d4d' },
+  editBtn: { fontSize: 18 },
   saveBtn: { backgroundColor: '#ff9800', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
   saveBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   startBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
