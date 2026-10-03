@@ -18,7 +18,10 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Workout Buddy",
+      "shortName": "WorkoutBuddy",
+      "themeColor": "#0bc0af"
     },
     "experiments": {
       "baseUrl": "/workout-buddy"
