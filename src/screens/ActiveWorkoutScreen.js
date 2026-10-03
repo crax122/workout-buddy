@@ -50,9 +50,11 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleEndWorkout = () => {
-    // We don't have access to the exact seconds in GlobalTimer directly unless we lift the state up, 
-    // but for now let's just pass the exercises to calculate volume.
-    navigation.navigate('Summary', { exercises });
+    // Pass both workoutName and exercises to calculate volume and save history.
+    navigation.navigate('Summary', { 
+      workoutName: route.params?.workoutName || 'My Workout', 
+      exercises 
+    });
   };
 
   if (!activeExercise) {

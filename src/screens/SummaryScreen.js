@@ -1,12 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SummaryScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const savedRef = useRef(false);
   
   const exercises = route.params?.exercises || [];
+  const workoutName = route.params?.workoutName || 'Completed Workout';
   
   const totalVolume = useMemo(() => {
     let vol = 0;
@@ -21,6 +24,32 @@ export default function SummaryScreen() {
     });
     return vol;
   }, [exercises]);
+
+  useEffect(() => {
+    if (!savedRef.current) {
+      saveHistory();
+      savedRef.current = true;
+    }
+  }, []);
+
+  const saveHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@workout_history');
+      let history = stored ? JSON.parse(stored) : [];
+      
+      history.unshift({
+        id: Date.now().toString(),
+        date: new Date().toLocaleDateString(),
+        name: workoutName,
+        volume: totalVolume,
+        exercises: exercises
+      });
+      
+      await AsyncStorage.setItem('@workout_history', JSON.stringify(history));
+    } catch (e) {
+      console.error("Failed to save history", e);
+    }
+  };
 
   return (
     <View style={styles.container}>

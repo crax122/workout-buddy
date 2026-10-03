@@ -7,6 +7,7 @@ import ActiveWorkoutScreen from './src/screens/ActiveWorkoutScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 import OneRMCalculatorScreen from './src/screens/OneRMCalculatorScreen';
 import CardioZonesScreen from './src/screens/CardioZonesScreen';
+import HistoryDetailsScreen from './src/screens/HistoryDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +21,7 @@ export default function App() {
         <Stack.Screen name="Summary" component={SummaryScreen} />
         <Stack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
         <Stack.Screen name="CardioZones" component={CardioZonesScreen} />
+        <Stack.Screen name="HistoryDetails" component={HistoryDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

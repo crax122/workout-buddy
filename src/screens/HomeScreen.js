@@ -8,9 +8,12 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const [savedWorkouts, setSavedWorkouts] = useState([]);
 
+  const [history, setHistory] = useState([]);
+
   useEffect(() => {
     if (isFocused) {
       loadWorkouts();
+      loadHistory();
     }
   }, [isFocused]);
 
@@ -25,12 +28,27 @@ export default function HomeScreen() {
     }
   };
 
-  // Mock data for history
-  const history = [
-    { id: 1, date: '10 Nov 2023', name: 'Duration' },
-    { id: 2, date: '27 Dec 2023', name: 'Duration' },
-    { id: 3, date: '18 Dec 2023', name: 'Name' }
-  ];
+  const loadHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@workout_history');
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      } else {
+        setHistory([]);
+      }
+    } catch (e) {
+      console.error("Failed to load history", e);
+    }
+  };
+
+  const clearHistory = async () => {
+    try {
+      await AsyncStorage.removeItem('@workout_history');
+      setHistory([]);
+    } catch (e) {
+      console.error("Failed to clear history", e);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -71,25 +89,24 @@ export default function HomeScreen() {
         </View>
       ))}
 
-      <Text style={styles.sectionTitle}>Progress History & Analysis</Text>
-      
-      {/* Fake Chart Area */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Strength Progression</Text>
-        <View style={styles.chartPlaceholder}>
-           <Text style={{color: '#999'}}>Chart placeholder (Max Squat, Bench)</Text>
-        </View>
+      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+        <Text style={[styles.sectionTitle, {marginBottom: 0}]}>History</Text>
+        {history.length > 0 && (
+          <TouchableOpacity onPress={clearHistory}>
+            <Text style={{color: '#ff4d4d', fontWeight: 'bold'}}>Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
-
-      <Text style={styles.sectionTitle}>History</Text>
+      
+      {history.length === 0 && <Text style={{marginBottom: 20, fontStyle: 'italic'}}>No workout history yet.</Text>}
       {history.map(item => (
-        <View key={item.id} style={styles.historyCard}>
+        <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => navigation.navigate('HistoryDetails', { historyItem: item })}>
           <View style={styles.historyIcon}><Text>📅</Text></View>
           <View>
             <Text style={styles.historyDate}>{item.date}</Text>
-            <Text style={styles.historyName}>{item.name}</Text>
+            <Text style={styles.historyName}>{item.name} - Vol: {item.volume} kg</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
 
     </ScrollView>
