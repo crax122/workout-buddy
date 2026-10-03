@@ -109,7 +109,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={{padding: 15, backgroundColor: '#ffe6e6', borderRadius: 10}}
+            style={{padding: 25, backgroundColor: '#ffe6e6', borderRadius: 15}}
             onPress={() => {
               Alert.alert(
                 "Supprimer", 
@@ -125,7 +125,7 @@ export default function HomeScreen() {
               );
             }}
           >
-            <Text style={{fontSize: 24, color: '#ff4d4d'}}>❌</Text>
+            <Text style={{fontSize: 36, color: '#ff4d4d'}}>❌</Text>
           </TouchableOpacity>
         </View>
       ))}
