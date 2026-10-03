@@ -66,9 +66,9 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: '#fff',
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 10,
@@ -78,5 +78,6 @@ const styles = StyleSheet.create({
   },
   endTxt: {
     color: '#fff',
+    fontSize: 18,
   }
 });

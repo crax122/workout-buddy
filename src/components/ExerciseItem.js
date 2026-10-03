@@ -69,10 +69,10 @@ const styles = StyleSheet.create({
   inputGroup: { flex: 1, marginHorizontal: 5 },
   inputLabel: { fontSize: 10, fontWeight: 'bold', color: '#666', marginBottom: 5, textAlign: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 2 },
-  stepBtn: { width: 30, height: 30, backgroundColor: '#eee', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  stepTxt: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  input: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold' },
-  previousData: { textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 15 },
-  logBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 25, alignItems: 'center' },
-  logBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  stepBtn: { width: 44, height: 44, backgroundColor: '#eee', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  stepTxt: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  input: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: 'bold' },
+  previousData: { textAlign: 'center', fontSize: 14, color: '#666', marginBottom: 15 },
+  logBtn: { backgroundColor: '#4caf50', padding: 20, borderRadius: 25, alignItems: 'center' },
+  logBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
 });

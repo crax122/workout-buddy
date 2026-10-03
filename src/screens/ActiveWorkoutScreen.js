@@ -81,14 +81,17 @@ export default function ActiveWorkoutScreen() {
       />
 
       <View style={styles.mainArea}>
-        {/* Active List (Sidebar style or top bar) */}
-        <View style={styles.sidebar}>
-          <Text style={styles.sidebarTitle}>My Exercises</Text>
-          <ScrollView>
+        {/* Active List (Horizontal Scroll / Tabs style) */}
+        <View style={styles.tabContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
             {exercises.map((ex, idx) => (
-              <TouchableOpacity key={ex.id} style={[styles.exListItem, idx === activeExIndex && styles.exListActiveItem]} onPress={() => { setActiveExIndex(idx); setIsResting(false); }}>
+              <TouchableOpacity 
+                key={ex.id} 
+                style={[styles.exTabItem, idx === activeExIndex && styles.exTabActiveItem]} 
+                onPress={() => { setActiveExIndex(idx); setIsResting(false); }}
+              >
                 {ex.completed ? <Text style={styles.exListCheck}>✓</Text> : <Text style={styles.exListDot}>•</Text>}
-                <Text style={[styles.exListTxt, idx === activeExIndex && styles.exListActiveTxt]}>{ex.name}</Text>
+                <Text style={[styles.exTabTxt, idx === activeExIndex && styles.exTabActiveTxt]}>{ex.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -132,16 +135,17 @@ export default function ActiveWorkoutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 10 },
-  mainArea: { flex: 1, flexDirection: 'row', marginTop: 10 },
-  sidebar: { width: 120, backgroundColor: '#1b2a47', borderRadius: 10, padding: 5, marginRight: 10 },
-  sidebarTitle: { color: '#fff', fontSize: 12, fontWeight: 'bold', marginBottom: 10, textAlign: 'center', marginTop: 5 },
-  exListItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 5, borderRadius: 5, marginBottom: 5 },
-  exListActiveItem: { backgroundColor: '#0bc0af' },
-  exListCheck: { color: '#a0a0a0', marginRight: 5, fontSize: 12 },
+  mainArea: { flex: 1, flexDirection: 'column', marginTop: 10 },
+  tabContainer: { backgroundColor: '#1b2a47', borderRadius: 10, marginBottom: 10, paddingVertical: 5 },
+  tabScroll: { paddingHorizontal: 10, alignItems: 'center' },
+  exTabItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, marginRight: 10, backgroundColor: '#2d436a' },
+  exTabActiveItem: { backgroundColor: '#0bc0af' },
+  exListCheck: { color: '#fff', marginRight: 5, fontSize: 12 },
   exListDot: { color: '#a0a0a0', marginRight: 5, fontSize: 12 },
-  exListTxt: { color: '#fff', fontSize: 12 },
-  exListActiveTxt: { fontWeight: 'bold' },
+  exTabTxt: { color: '#ccc', fontSize: 14, fontWeight: 'bold' },
+  exTabActiveTxt: { color: '#fff' },
   content: { flex: 1 },
-  backBtn: { backgroundColor: '#999', padding: 10, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
+
