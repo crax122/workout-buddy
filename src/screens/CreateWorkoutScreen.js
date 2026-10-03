@@ -13,6 +13,7 @@ export default function CreateWorkoutScreen() {
   
   const [newExerciseName, setNewExerciseName] = useState('');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
+  const [newRestInput, setNewRestInput] = useState('60');
   const [editIndex, setEditIndex] = useState(null);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function CreateWorkoutScreen() {
       name: newExerciseName.trim(),
       sets: parsedTargetSets.length,
       targetReps: parsedTargetSets,
+      restTime: parseInt(newRestInput) || 60,
       completedSets: 0,
       prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
       completed: false
@@ -75,11 +77,13 @@ export default function CreateWorkoutScreen() {
     }
     setNewExerciseName('');
     setNewSetsInput('3x10');
+    setNewRestInput('60');
   };
 
   const handleEditExercise = (index) => {
     const ex = exercises[index];
     setNewExerciseName(ex.name);
+    setNewRestInput(String(ex.restTime || 60));
     
     // Convert targetReps array back to a string for easy editing
     // If all reps are the same, we can do something like `3x10`
@@ -169,6 +173,14 @@ export default function CreateWorkoutScreen() {
           onChangeText={setNewSetsInput} 
           placeholder="e.g. 10,10,5 or 3x10"
         />
+        <Text style={styles.label}>Rest Time (seconds)</Text>
+        <TextInput 
+          style={styles.input} 
+          value={newRestInput} 
+          onChangeText={setNewRestInput} 
+          placeholder="e.g. 60"
+          keyboardType="numeric"
+        />
         <TouchableOpacity style={styles.addBtn} onPress={handleAddExercise}>
           <Text style={styles.addBtnTxt}>{editIndex !== null ? "UPDATE EXERCISE" : "+ ADD EXERCISE"}</Text>
         </TouchableOpacity>
@@ -181,7 +193,7 @@ export default function CreateWorkoutScreen() {
           <View key={ex.id} style={styles.exCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
-              <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets)</Text>
+              <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 15 }}>
               <TouchableOpacity onPress={() => handleEditExercise(index)}>

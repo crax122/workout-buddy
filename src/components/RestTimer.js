@@ -22,7 +22,15 @@ export default function RestTimer({ initialSeconds, onSkip, nextExercise }) {
   return (
     <View style={styles.card}>
       <Text style={styles.title}>COUNTDOWN:</Text>
-      <Text style={styles.time}>{formatTime(seconds)}</Text>
+      <View style={styles.timeControls}>
+        <TouchableOpacity style={styles.adjustBtn} onPress={() => setSeconds(s => Math.max(0, s - 15))}>
+          <Text style={styles.adjustBtnTxt}>-15s</Text>
+        </TouchableOpacity>
+        <Text style={styles.time}>{formatTime(seconds)}</Text>
+        <TouchableOpacity style={styles.adjustBtn} onPress={() => setSeconds(s => s + 15)}>
+          <Text style={styles.adjustBtnTxt}>+15s</Text>
+        </TouchableOpacity>
+      </View>
       
       <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
         <Text style={styles.skipBtnTxt}>SKIP REST</Text>
@@ -49,7 +57,10 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   title: { fontSize: 14, color: '#666', fontWeight: 'bold', marginBottom: 10 },
-  time: { fontSize: 48, fontWeight: 'bold', color: '#333', marginBottom: 20 },
+  timeControls: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  adjustBtn: { backgroundColor: '#e6f7f6', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 10, marginHorizontal: 15 },
+  adjustBtnTxt: { color: '#0bc0af', fontWeight: 'bold', fontSize: 16 },
+  time: { fontSize: 48, fontWeight: 'bold', color: '#333' },
   skipBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', paddingVertical: 10, paddingHorizontal: 30, borderRadius: 25, marginBottom: 20 },
   skipBtnTxt: { color: '#666', fontSize: 16, fontWeight: 'bold' },
   nextContainer: { backgroundColor: '#0bc0af', width: '100%', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -97,7 +97,7 @@ export default function ActiveWorkoutScreen() {
         <View style={styles.content}>
           {isResting ? (
             <RestTimer 
-              initialSeconds={60} 
+              initialSeconds={exercises[activeExIndex].restTime || 60} 
               onSkip={handleSkipRest} 
               nextExercise={
                 exercises[activeExIndex].completed && activeExIndex < exercises.length - 1 
