@@ -35,7 +35,14 @@ export default function ActiveWorkoutScreen() {
     }
     
     setExercises(updated);
-    setIsResting(true);
+    
+    const allCompleted = updated.every(e => e.completed);
+    
+    if (allCompleted) {
+      handleEndWorkout();
+    } else {
+      setIsResting(true);
+    }
   };
 
   const handleSkipRest = () => {
@@ -43,8 +50,6 @@ export default function ActiveWorkoutScreen() {
     if (exercises[activeExIndex].completed) {
       if (activeExIndex < exercises.length - 1) {
         setActiveExIndex(activeExIndex + 1);
-      } else {
-        Alert.alert("Workout Completed!", "All exercises finished.");
       }
     }
   };
@@ -113,9 +118,14 @@ export default function ActiveWorkoutScreen() {
           )}
         </View>
       </View>
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
-        <Text style={styles.backBtnTxt}>BACK TO HOME</Text>
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+        <TouchableOpacity style={[styles.backBtn, { flex: 1, marginTop: 0, backgroundColor: '#ff4d4d' }]} onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.backBtnTxt}>CANCEL WORKOUT</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.backBtn, { flex: 1, marginTop: 0, backgroundColor: '#4caf50' }]} onPress={handleEndWorkout}>
+          <Text style={styles.backBtnTxt}>FINISH & SAVE</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
