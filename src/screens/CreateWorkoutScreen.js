@@ -190,12 +190,12 @@ export default function CreateWorkoutScreen() {
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
               <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
             </View>
-            <View style={{ flexDirection: 'row', gap: 15 }}>
-              <TouchableOpacity onPress={() => handleEditExercise(index)}>
-                <Text style={styles.editBtn}>✏️</Text>
+            <View style={{ flexDirection: 'row' }}>
+              <TouchableOpacity style={styles.editBtn} onPress={() => handleEditExercise(index)}>
+                <Text style={styles.editBtnTxt}>✏️</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleRemoveExercise(ex.id)}>
-                <Text style={styles.removeBtn}>❌</Text>
+              <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveExercise(ex.id)}>
+                <Text style={styles.removeBtnTxt}>❌</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -234,8 +234,10 @@ const styles = StyleSheet.create({
   exCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 10, elevation: 1 },
   exName: { fontSize: 16, fontWeight: 'bold' },
   exDetails: { fontSize: 14, color: '#666' },
-  removeBtn: { fontSize: 18, color: '#ff4d4d' },
-  editBtn: { fontSize: 18 },
+  removeBtn: { padding: 10 },
+  removeBtnTxt: { fontSize: 20, color: '#ff4d4d' },
+  editBtn: { padding: 10 },
+  editBtnTxt: { fontSize: 20 },
   saveBtn: { backgroundColor: '#ff9800', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
   saveBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   startBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },

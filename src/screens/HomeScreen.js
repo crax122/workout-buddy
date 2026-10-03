@@ -49,15 +49,15 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
       
-      <View style={styles.actionRow}>
+      <View style={styles.actionCol}>
         <TouchableOpacity 
-          style={[styles.startBtn, { flex: 1, marginRight: 5 }]} 
+          style={[styles.startBtn, { marginBottom: 10 }]} 
           onPress={() => navigation.navigate('CreateWorkout')}>
           <Text style={styles.startBtnTxt}>+ CREATE NEW WORKOUT</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.startBtn, { flex: 1, marginLeft: 5, backgroundColor: '#ff9800' }]} 
+          style={[styles.startBtn, { backgroundColor: '#ff9800' }]} 
           onPress={() => navigation.navigate('OneRMCalculator')}>
           <Text style={styles.startBtnTxt}>🔢 1RM CALCULATOR</Text>
         </TouchableOpacity>
@@ -74,7 +74,7 @@ export default function HomeScreen() {
       {savedWorkouts.map(workout => (
         <View key={workout.id} style={styles.savedCard}>
           <Text style={styles.savedTitle}>{workout.name}</Text>
-          <View style={{flexDirection: 'row', gap: 10}}>
+          <View style={{flexDirection: 'row', gap: 10, width: '100%'}}>
             <TouchableOpacity 
               style={[styles.launchBtn, {backgroundColor: '#ff9800'}]}
               onPress={() => navigation.navigate('CreateWorkout', { editWorkout: workout })}>
@@ -116,14 +116,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#0bc0af' },
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  startBtn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  startBtnTxt: { color: '#fff', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
-  savedCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
-  savedTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  launchBtn: { backgroundColor: '#4caf50', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20 },
-  launchBtnTxt: { color: '#fff', fontWeight: 'bold' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#0bc0af' },
+  actionCol: { flexDirection: 'column', marginBottom: 20 },
+  startBtn: { backgroundColor: '#0bc0af', padding: 18, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  startBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  savedCard: { flexDirection: 'column', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15 },
+  savedTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  launchBtn: { flex: 1, backgroundColor: '#4caf50', paddingVertical: 12, paddingHorizontal: 15, borderRadius: 10, alignItems: 'center' },
+  launchBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
   chartCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 20 },
   chartTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
