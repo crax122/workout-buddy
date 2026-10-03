@@ -53,16 +53,16 @@ export default function HistoryDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
-  header: { alignItems: 'center', marginVertical: 20, backgroundColor: '#fff', padding: 20, borderRadius: 10 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#0bc0af', marginBottom: 5 },
-  date: { fontSize: 16, color: '#666', marginBottom: 5 },
-  volume: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  exercisesList: { marginBottom: 30 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-  exCard: { backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 10, elevation: 1 },
-  exName: { fontSize: 16, fontWeight: 'bold', marginBottom: 5, color: '#1b2a47' },
-  setDetail: { fontSize: 14, color: '#555', marginLeft: 15, marginBottom: 2 },
-  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 40 },
-  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 23 },
+  header: { alignItems: 'center', marginVertical: 30, backgroundColor: '#fff', padding: 30, borderRadius: 15 },
+  title: { fontSize: 36, fontWeight: 'bold', color: '#0bc0af', marginBottom: 8 },
+  date: { fontSize: 24, color: '#666', marginBottom: 8 },
+  volume: { fontSize: 27, fontWeight: 'bold', color: '#333' },
+  exercisesList: { marginBottom: 45 },
+  sectionTitle: { fontSize: 27, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  exCard: { backgroundColor: '#fff', padding: 23, borderRadius: 12, marginBottom: 15, elevation: 1 },
+  exName: { fontSize: 24, fontWeight: 'bold', marginBottom: 8, color: '#1b2a47' },
+  setDetail: { fontSize: 21, color: '#555', marginLeft: 23, marginBottom: 3 },
+  backBtn: { backgroundColor: '#999', padding: 23, borderRadius: 15, alignItems: 'center', marginBottom: 60 },
+  backBtnTxt: { color: '#fff', fontSize: 24, fontWeight: 'bold' }
 });

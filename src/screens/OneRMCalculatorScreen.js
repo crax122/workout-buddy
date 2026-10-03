@@ -78,22 +78,22 @@ export default function OneRMCalculatorScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
-  header: { alignItems: 'center', marginVertical: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#ff9800' },
-  inputCard: { backgroundColor: '#fff', padding: 20, borderRadius: 10, marginBottom: 20 },
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 23 },
+  header: { alignItems: 'center', marginVertical: 30 },
+  title: { fontSize: 36, fontWeight: 'bold', color: '#ff9800' },
+  inputCard: { backgroundColor: '#fff', padding: 30, borderRadius: 15, marginBottom: 30 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { width: '48%' },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  input: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', fontSize: 18, textAlign: 'center' },
-  resultCard: { backgroundColor: '#1b2a47', padding: 20, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
-  estimatedText: { color: '#ccc', fontSize: 16, marginBottom: 5 },
-  oneRMText: { color: '#0bc0af', fontSize: 48, fontWeight: 'bold' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-  table: { backgroundColor: '#fff', borderRadius: 10, padding: 15, marginBottom: 30 },
-  tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  tableCell: { fontSize: 16, fontWeight: 'bold', color: '#555' },
-  tableCellValue: { fontSize: 16, fontWeight: 'bold', color: '#0bc0af' },
-  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 40 },
-  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  label: { fontSize: 21, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  input: { backgroundColor: '#f9f9f9', padding: 18, borderRadius: 12, borderWidth: 1, borderColor: '#ddd', fontSize: 27, textAlign: 'center' },
+  resultCard: { backgroundColor: '#1b2a47', padding: 30, borderRadius: 15, alignItems: 'center', marginBottom: 30 },
+  estimatedText: { color: '#ccc', fontSize: 24, marginBottom: 8 },
+  oneRMText: { color: '#0bc0af', fontSize: 72, fontWeight: 'bold' },
+  sectionTitle: { fontSize: 27, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  table: { backgroundColor: '#fff', borderRadius: 15, padding: 23, marginBottom: 45 },
+  tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  tableCell: { fontSize: 24, fontWeight: 'bold', color: '#555' },
+  tableCellValue: { fontSize: 24, fontWeight: 'bold', color: '#0bc0af' },
+  backBtn: { backgroundColor: '#999', padding: 23, borderRadius: 15, alignItems: 'center', marginBottom: 60 },
+  backBtnTxt: { color: '#fff', fontSize: 24, fontWeight: 'bold' }
 });

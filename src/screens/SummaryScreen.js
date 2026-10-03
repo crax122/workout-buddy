@@ -64,13 +64,13 @@ export default function SummaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card: { backgroundColor: '#fff', width: '100%', borderRadius: 15, overflow: 'hidden', elevation: 5 },
-  header: { backgroundColor: '#0bc0af', padding: 20, alignItems: 'center' },
-  title: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  subtitle: { color: '#fff', fontSize: 18 },
-  details: { padding: 30, alignItems: 'center' },
-  detailText: { fontSize: 18, color: '#333', marginBottom: 10, fontWeight: 'bold' },
-  backBtn: { backgroundColor: '#999', padding: 15, margin: 20, borderRadius: 25, alignItems: 'center' },
-  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  container: { flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center', padding: 30 },
+  card: { backgroundColor: '#fff', width: '100%', borderRadius: 23, overflow: 'hidden', elevation: 5 },
+  header: { backgroundColor: '#0bc0af', padding: 30, alignItems: 'center' },
+  title: { color: '#fff', fontSize: 36, fontWeight: 'bold' },
+  subtitle: { color: '#fff', fontSize: 27 },
+  details: { padding: 45, alignItems: 'center' },
+  detailText: { fontSize: 27, color: '#333', marginBottom: 15, fontWeight: 'bold' },
+  backBtn: { backgroundColor: '#999', padding: 23, margin: 30, borderRadius: 38, alignItems: 'center' },
+  backBtnTxt: { color: '#fff', fontSize: 24, fontWeight: 'bold' }
 });
