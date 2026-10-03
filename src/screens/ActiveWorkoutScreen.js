@@ -134,18 +134,18 @@ export default function ActiveWorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 10 },
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
   mainArea: { flex: 1, flexDirection: 'column', marginTop: 10 },
-  tabContainer: { backgroundColor: '#1b2a47', borderRadius: 10, marginBottom: 10, paddingVertical: 5 },
+  tabContainer: { backgroundColor: '#1b2a47', borderRadius: 15, marginBottom: 15, paddingVertical: 10 },
   tabScroll: { paddingHorizontal: 10, alignItems: 'center' },
-  exTabItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, marginRight: 10, backgroundColor: '#2d436a' },
+  exTabItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 25, borderRadius: 30, marginRight: 15, backgroundColor: '#2d436a' },
   exTabActiveItem: { backgroundColor: '#0bc0af' },
-  exListCheck: { color: '#fff', marginRight: 5, fontSize: 12 },
-  exListDot: { color: '#a0a0a0', marginRight: 5, fontSize: 12 },
-  exTabTxt: { color: '#ccc', fontSize: 14, fontWeight: 'bold' },
+  exListCheck: { color: '#fff', marginRight: 10, fontSize: 20 },
+  exListDot: { color: '#a0a0a0', marginRight: 10, fontSize: 20 },
+  exTabTxt: { color: '#ccc', fontSize: 22, fontWeight: 'bold' },
   exTabActiveTxt: { color: '#fff' },
   content: { flex: 1 },
-  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  backBtn: { backgroundColor: '#999', padding: 25, borderRadius: 15, alignItems: 'center', marginTop: 15 },
+  backBtnTxt: { color: '#fff', fontSize: 22, fontWeight: 'bold' }
 });
 
