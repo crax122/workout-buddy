@@ -1,11 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-
-import { generateWorkout } from '../utils/geminiApi';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const [savedWorkouts, setSavedWorkouts] = useState([]);
+
+  useEffect(() => {
+    if (isFocused) {
+      loadWorkouts();
+    }
+  }, [isFocused]);
+
+  const loadWorkouts = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@workout_templates');
+      if (stored) {
+        setSavedWorkouts(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to load workouts", e);
+    }
+  };
 
   // Mock data for history
   const history = [
@@ -14,30 +32,44 @@ export default function HomeScreen() {
     { id: 3, date: '18 Dec 2023', name: 'Name' }
   ];
 
-  const handleAIGenerate = async () => {
-    // Just a placeholder alert for the demo
-    alert('Calling Gemini 3.7-flash to generate workout...');
-    // const plan = await generateWorkout('build muscle');
-    // alert(plan);
-  };
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Workout Buddy</Text>
       </View>
       
-      <TouchableOpacity 
-        style={styles.startBtn} 
-        onPress={() => navigation.navigate('ActiveWorkout')}>
-        <Text style={styles.startBtnTxt}>START NEW WORKOUT</Text>
-      </TouchableOpacity>
+      <View style={styles.actionRow}>
+        <TouchableOpacity 
+          style={[styles.startBtn, { flex: 1, marginRight: 5 }]} 
+          onPress={() => navigation.navigate('CreateWorkout')}>
+          <Text style={styles.startBtnTxt}>+ CREATE NEW WORKOUT</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.startBtn, { flex: 1, marginLeft: 5, backgroundColor: '#ff9800' }]} 
+          onPress={() => navigation.navigate('OneRMCalculator')}>
+          <Text style={styles.startBtnTxt}>🔢 1RM CALCULATOR</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity 
-        style={[styles.startBtn, { backgroundColor: '#8a2be2', marginTop: -20, marginBottom: 30 }]} 
-        onPress={handleAIGenerate}>
-        <Text style={styles.startBtnTxt}>✨ GENERATE WITH AI</Text>
+        style={[styles.startBtn, { backgroundColor: '#e91e63', marginBottom: 30 }]} 
+        onPress={() => navigation.navigate('CardioZones')}>
+        <Text style={[styles.startBtnTxt, {fontSize: 16}]}>❤️ CARDIO ZONES (Karvonen)</Text>
       </TouchableOpacity>
+
+      <Text style={styles.sectionTitle}>Saved Workouts</Text>
+      {savedWorkouts.length === 0 && <Text style={{marginBottom: 20, fontStyle: 'italic'}}>No saved workouts yet.</Text>}
+      {savedWorkouts.map(workout => (
+        <View key={workout.id} style={styles.savedCard}>
+          <Text style={styles.savedTitle}>{workout.name}</Text>
+          <TouchableOpacity 
+            style={styles.launchBtn}
+            onPress={() => navigation.navigate('ActiveWorkout', { workoutName: workout.name, exercises: workout.exercises })}>
+            <Text style={styles.launchBtnTxt}>▶ START</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
 
       <Text style={styles.sectionTitle}>Progress History & Analysis</Text>
       
@@ -68,8 +100,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
   header: { alignItems: 'center', marginVertical: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#0bc0af' },
-  startBtn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 30 },
-  startBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  startBtn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  startBtnTxt: { color: '#fff', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  savedCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
+  savedTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  launchBtn: { backgroundColor: '#4caf50', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20 },
+  launchBtnTxt: { color: '#fff', fontWeight: 'bold' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
   chartCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 20 },
   chartTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },

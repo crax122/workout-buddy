@@ -1,0 +1,171 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export default function CreateWorkoutScreen() {
+  const navigation = useNavigation();
+  const [workoutName, setWorkoutName] = useState('My Workout');
+  const [exercises, setExercises] = useState([]);
+  const [newExerciseName, setNewExerciseName] = useState('');
+  const [newSetsInput, setNewSetsInput] = useState('3x10');
+
+  const parseSets = (input) => {
+    const parts = input.split(',').map(s => s.trim());
+    let parsed = [];
+    for (let part of parts) {
+      if (part.includes('x')) {
+        const [count, reps] = part.split('x').map(Number);
+        if (!isNaN(count) && !isNaN(reps)) {
+          for (let i = 0; i < count; i++) parsed.push(reps);
+        }
+      } else {
+        const reps = Number(part);
+        if (!isNaN(reps) && reps > 0) {
+          parsed.push(reps);
+        }
+      }
+    }
+    return parsed;
+  };
+
+  const handleAddExercise = () => {
+    if (!newExerciseName.trim()) {
+      Alert.alert('Error', 'Please enter an exercise name');
+      return;
+    }
+    
+    const parsedTargetSets = parseSets(newSetsInput);
+    if (parsedTargetSets.length === 0) {
+      Alert.alert('Error', 'Please enter a valid sets format (e.g., "3x10" or "10,10,8")');
+      return;
+    }
+    
+    const newEx = {
+      id: Date.now().toString(),
+      name: newExerciseName.trim(),
+      sets: parsedTargetSets.length,
+      targetReps: parsedTargetSets,
+      completedSets: 0,
+      prev: 'No previous data',
+      completed: false
+    };
+
+    setExercises([...exercises, newEx]);
+    setNewExerciseName('');
+  };
+
+  const handleRemoveExercise = (id) => {
+    setExercises(exercises.filter(ex => ex.id !== id));
+  };
+
+  const handleStart = async () => {
+    if (exercises.length === 0) {
+      Alert.alert('Error', 'Please add at least one exercise.');
+      return;
+    }
+
+    try {
+      // Save workout template
+      const stored = await AsyncStorage.getItem('@workout_templates');
+      let templates = stored ? JSON.parse(stored) : [];
+      
+      const newTemplate = {
+        id: Date.now().toString(),
+        name: workoutName,
+        exercises: exercises
+      };
+      
+      templates.unshift(newTemplate);
+      await AsyncStorage.setItem('@workout_templates', JSON.stringify(templates));
+    } catch(e) {
+      console.error("Failed to save template", e);
+    }
+
+    navigation.navigate('ActiveWorkout', { workoutName, exercises });
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Create Workout</Text>
+      </View>
+
+      <Text style={styles.label}>Workout Name</Text>
+      <TextInput 
+        style={styles.input} 
+        value={workoutName} 
+        onChangeText={setWorkoutName} 
+        placeholder="e.g. Leg Day"
+      />
+
+      <View style={styles.addSection}>
+        <Text style={styles.sectionTitle}>Add Exercise</Text>
+        <TextInput 
+          style={styles.input} 
+          value={newExerciseName} 
+          onChangeText={setNewExerciseName} 
+          placeholder="Exercise Name (e.g. Squats)"
+        />
+        <Text style={styles.label}>Sets & Reps (e.g. 2x10, 1x5)</Text>
+        <TextInput 
+          style={styles.input} 
+          value={newSetsInput} 
+          onChangeText={setNewSetsInput} 
+          placeholder="e.g. 10,10,5 or 3x10"
+        />
+        <TouchableOpacity style={styles.addBtn} onPress={handleAddExercise}>
+          <Text style={styles.addBtnTxt}>+ ADD EXERCISE</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.listSection}>
+        <Text style={styles.sectionTitle}>Exercises List</Text>
+        {exercises.length === 0 && <Text style={styles.emptyText}>No exercises added yet.</Text>}
+        {exercises.map((ex, index) => (
+          <View key={ex.id} style={styles.exCard}>
+            <View>
+              <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
+              <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets)</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleRemoveExercise(ex.id)}>
+              <Text style={styles.removeBtn}>❌</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+
+      <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
+        <Text style={styles.startBtnTxt}>START WORKOUT</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
+        <Text style={styles.backBtnTxt}>BACK TO HOME</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15 },
+  header: { alignItems: 'center', marginVertical: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#0bc0af' },
+  label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
+  input: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
+  addSection: { backgroundColor: '#e6f7f6', padding: 15, borderRadius: 10, marginBottom: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  halfInput: { width: '48%' },
+  addBtn: { backgroundColor: '#1b2a47', padding: 12, borderRadius: 8, alignItems: 'center' },
+  addBtnTxt: { color: '#fff', fontWeight: 'bold' },
+  listSection: { marginBottom: 30 },
+  emptyText: { fontStyle: 'italic', color: '#888' },
+  exCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 10, elevation: 1 },
+  exName: { fontSize: 16, fontWeight: 'bold' },
+  exDetails: { fontSize: 14, color: '#666' },
+  removeBtn: { fontSize: 18, color: '#ff4d4d' },
+  startBtn: { backgroundColor: '#4caf50', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 15 },
+  startBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 40 },
+  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+});

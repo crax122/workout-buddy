@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalTimer from '../components/GlobalTimer';
 import ExerciseItem from '../components/ExerciseItem';
 import RestTimer from '../components/RestTimer';
 
 export default function ActiveWorkoutScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  
   const [timerActive, setTimerActive] = useState(true);
   
-  const [exercises, setExercises] = useState([
-    { id: 1, name: 'Squats', sets: 4, completedSets: 1, prev: '40kg x 10', completed: false },
-    { id: 2, name: 'Glute Bridges', sets: 3, completedSets: 0, prev: '20kg x 12', completed: false },
-    { id: 3, name: 'Deadlifts', sets: 3, completedSets: 0, prev: '60kg x 8', completed: false },
-  ]);
+  // Use exercises from route params, or default fallback
+  const [exercises, setExercises] = useState(route.params?.exercises || []);
 
   const [activeExIndex, setActiveExIndex] = useState(0);
   const [isResting, setIsResting] = useState(false);
@@ -21,18 +20,22 @@ export default function ActiveWorkoutScreen() {
   const activeExercise = exercises[activeExIndex];
 
   const handleLogSet = (data) => {
-    // Increment set
     const updated = [...exercises];
-    updated[activeExIndex].completedSets += 1;
+    const ex = updated[activeExIndex];
     
-    if (updated[activeExIndex].completedSets >= updated[activeExIndex].sets) {
-      updated[activeExIndex].completed = true;
-      setExercises(updated);
-      setIsResting(true);
-    } else {
-      setExercises(updated);
-      setIsResting(true);
+    // Initialize loggedSets array if not present
+    if (!ex.loggedSets) ex.loggedSets = [];
+    
+    // Save the logged set data (weight, reps)
+    ex.loggedSets.push(data);
+    ex.completedSets += 1;
+    
+    if (ex.completedSets >= ex.sets) {
+      ex.completed = true;
     }
+    
+    setExercises(updated);
+    setIsResting(true);
   };
 
   const handleSkipRest = () => {
@@ -41,15 +44,25 @@ export default function ActiveWorkoutScreen() {
       if (activeExIndex < exercises.length - 1) {
         setActiveExIndex(activeExIndex + 1);
       } else {
-        // Workout Done!
         Alert.alert("Workout Completed!", "All exercises finished.");
       }
     }
   };
 
   const handleEndWorkout = () => {
-    navigation.navigate('Summary');
+    // We don't have access to the exact seconds in GlobalTimer directly unless we lift the state up, 
+    // but for now let's just pass the exercises to calculate volume.
+    navigation.navigate('Summary', { exercises });
   };
+
+  if (!activeExercise) {
+    return (
+      <View style={styles.container}>
+        <Text>No exercises found.</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}><Text>Go Back</Text></TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -63,7 +76,7 @@ export default function ActiveWorkoutScreen() {
       <View style={styles.mainArea}>
         {/* Active List (Sidebar style or top bar) */}
         <View style={styles.sidebar}>
-          <Text style={styles.sidebarTitle}>Mes Entrainements</Text>
+          <Text style={styles.sidebarTitle}>My Exercises</Text>
           <ScrollView>
             {exercises.map((ex, idx) => (
               <TouchableOpacity key={ex.id} style={[styles.exListItem, idx === activeExIndex && styles.exListActiveItem]} onPress={() => { setActiveExIndex(idx); setIsResting(false); }}>
@@ -91,11 +104,16 @@ export default function ActiveWorkoutScreen() {
               currentSet={activeExercise.completedSets + 1} 
               totalSets={activeExercise.sets} 
               previousData={activeExercise.prev}
+              initialWeight={activeExercise.loggedSets && activeExercise.loggedSets.length > 0 ? activeExercise.loggedSets[activeExercise.loggedSets.length - 1].weight : '0'}
+              initialReps={String(activeExercise.targetReps ? activeExercise.targetReps[activeExercise.completedSets] || 10 : 10)}
               onLogSet={handleLogSet}
             />
           )}
         </View>
       </View>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
+        <Text style={styles.backBtnTxt}>BACK TO HOME</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -111,5 +129,7 @@ const styles = StyleSheet.create({
   exListDot: { color: '#a0a0a0', marginRight: 5, fontSize: 12 },
   exListTxt: { color: '#fff', fontSize: 12 },
   exListActiveTxt: { fontWeight: 'bold' },
-  content: { flex: 1 }
+  content: { flex: 1 },
+  backBtn: { backgroundColor: '#999', padding: 10, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  backBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
