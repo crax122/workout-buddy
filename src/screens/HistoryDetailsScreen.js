@@ -49,7 +49,7 @@ export default function HistoryDetailsScreen() {
       <View style={{flexDirection: 'row', gap: 15, marginBottom: 60}}>
         <TouchableOpacity style={[styles.backBtn, {flex: 1, marginBottom: 0, backgroundColor: '#ff4d4d'}]} onPress={async () => {
           if (window.confirm("Détruire cet historique ?")) {
-            const success = await deleteHistoryItem(historyItem.id);
+            const success = await deleteHistoryItem(historyItem);
             if (success) {
               navigation.navigate('Home');
             } else {

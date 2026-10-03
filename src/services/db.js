@@ -84,12 +84,20 @@ export const clearHistory = async () => {
   }
 };
 
-export const deleteHistoryItem = async (historyId) => {
+export const deleteHistoryItem = async (historyItemToDelete) => {
   try {
     const ref = await ensureUserDoc();
     const snap = await getDoc(ref);
     let history = snap.data().history || [];
-    history = history.filter(item => item.id !== historyId);
+    
+    // Filter out the item based on ID if available, otherwise fallback to matching date, name, and volume
+    history = history.filter(item => {
+      if (item.id && historyItemToDelete.id) {
+        return item.id !== historyItemToDelete.id;
+      }
+      return !(item.date === historyItemToDelete.date && item.name === historyItemToDelete.name && item.volume === historyItemToDelete.volume);
+    });
+    
     await updateDoc(ref, { history });
     return true;
   } catch (error) {

@@ -112,7 +112,7 @@ export default function HomeScreen() {
             style={{padding: 25, backgroundColor: '#ffe6e6', borderRadius: 15}}
             onPress={async () => {
               if (window.confirm("Voulez-vous vraiment supprimer cet historique ?")) {
-                const success = await deleteHistoryItem(item.id);
+                const success = await deleteHistoryItem(item);
                 if (success) {
                   loadHistory();
                 } else {
