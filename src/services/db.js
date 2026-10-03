@@ -83,3 +83,17 @@ export const clearHistory = async () => {
     return false;
   }
 };
+
+export const deleteHistoryItem = async (historyId) => {
+  try {
+    const ref = await ensureUserDoc();
+    const snap = await getDoc(ref);
+    let history = snap.data().history || [];
+    history = history.filter(item => item.id !== historyId);
+    await updateDoc(ref, { history });
+    return true;
+  } catch (error) {
+    console.error("Error deleting history item:", error);
+    return false;
+  }
+};

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { deleteHistoryItem } from '../services/db';
 
 export default function HistoryDetailsScreen() {
   const navigation = useNavigation();
@@ -45,9 +46,24 @@ export default function HistoryDetailsScreen() {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
-        <Text style={styles.backBtnTxt}>BACK TO HOME</Text>
-      </TouchableOpacity>
+      <View style={{flexDirection: 'row', gap: 15, marginBottom: 60}}>
+        <TouchableOpacity style={[styles.backBtn, {flex: 1, marginBottom: 0, backgroundColor: '#ff4d4d'}]} onPress={() => {
+          Alert.alert("Supprimer", "Détruire cet historique ?", [
+            { text: "Annuler", style: "cancel" },
+            { text: "Oui", onPress: async () => {
+                await deleteHistoryItem(historyItem.id);
+                navigation.navigate('Home');
+              }
+            }
+          ]);
+        }}>
+          <Text style={styles.backBtnTxt}>SUPPRIMER</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={[styles.backBtn, {flex: 1, marginBottom: 0}]} onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.backBtnTxt}>RETOUR</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { getTemplates, getHistory, clearHistory as dbClearHistory } from '../services/db';
+import { getTemplates, getHistory, clearHistory as dbClearHistory, deleteHistoryItem } from '../services/db';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -100,13 +100,34 @@ export default function HomeScreen() {
       
       {history.length === 0 && <Text style={{marginBottom: 20, fontStyle: 'italic'}}>No workout history yet.</Text>}
       {history.map(item => (
-        <TouchableOpacity key={item.id} style={styles.historyCard} onPress={() => navigation.navigate('HistoryDetails', { historyItem: item })}>
-          <View style={styles.historyIcon}><Text>📅</Text></View>
-          <View>
-            <Text style={styles.historyDate}>{item.date}</Text>
-            <Text style={styles.historyName}>{item.name} - Vol: {item.volume} kg</Text>
-          </View>
-        </TouchableOpacity>
+        <View key={item.id} style={styles.historyCard}>
+          <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => navigation.navigate('HistoryDetails', { historyItem: item })}>
+            <View style={styles.historyIcon}><Text>📅</Text></View>
+            <View>
+              <Text style={styles.historyDate}>{item.date}</Text>
+              <Text style={styles.historyName}>{item.name} - Vol: {item.volume} kg</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{padding: 15, backgroundColor: '#ffe6e6', borderRadius: 10}}
+            onPress={() => {
+              Alert.alert(
+                "Supprimer", 
+                "Voulez-vous vraiment supprimer cet historique ?",
+                [
+                  { text: "Annuler", style: "cancel" },
+                  { text: "Oui", onPress: async () => {
+                      const success = await deleteHistoryItem(item.id);
+                      if (success) loadHistory();
+                    } 
+                  }
+                ]
+              );
+            }}
+          >
+            <Text style={{fontSize: 24, color: '#ff4d4d'}}>❌</Text>
+          </TouchableOpacity>
+        </View>
       ))}
 
     </ScrollView>
