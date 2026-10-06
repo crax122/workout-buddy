@@ -12,6 +12,8 @@ export default function CreateWorkoutScreen() {
   const [exercises, setExercises] = useState([]);
   
   const [newExerciseName, setNewExerciseName] = useState('');
+  const [newExType, setNewExType] = useState('reps');
+  const [newTimeInput, setNewTimeInput] = useState('5');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
   const [newRestInput, setNewRestInput] = useState('60');
   const [editIndex, setEditIndex] = useState(null);
@@ -50,22 +52,40 @@ export default function CreateWorkoutScreen() {
       return;
     }
     
-    const parsedTargetSets = parseSets(newSetsInput);
-    if (parsedTargetSets.length === 0) {
-      Alert.alert('Error', 'Please enter a valid sets format (e.g., "3x10" or "10,10,8")');
-      return;
-    }
+    let newEx;
     
-    const newEx = {
-      id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
-      name: newExerciseName.trim(),
-      sets: parsedTargetSets.length,
-      targetReps: parsedTargetSets,
-      restTime: parseInt(newRestInput) || 60,
-      completedSets: 0,
-      prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
-      completed: false
-    };
+    if (newExType === 'time') {
+      const durationMins = parseFloat(newTimeInput);
+      if (isNaN(durationMins) || durationMins <= 0) {
+        Alert.alert('Error', 'Please enter a valid duration');
+        return;
+      }
+      newEx = {
+        id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
+        name: newExerciseName.trim(),
+        type: 'time',
+        durationSeconds: Math.floor(durationMins * 60),
+        restTime: parseInt(newRestInput) || 60,
+        completed: false
+      };
+    } else {
+      const parsedTargetSets = parseSets(newSetsInput);
+      if (parsedTargetSets.length === 0) {
+        Alert.alert('Error', 'Please enter a valid sets format (e.g., "3x10" or "10,10,8")');
+        return;
+      }
+      newEx = {
+        id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
+        name: newExerciseName.trim(),
+        type: 'reps',
+        sets: parsedTargetSets.length,
+        targetReps: parsedTargetSets,
+        restTime: parseInt(newRestInput) || 60,
+        completedSets: 0,
+        prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
+        completed: false
+      };
+    }
 
     if (editIndex !== null) {
       const updated = [...exercises];
@@ -77,6 +97,8 @@ export default function CreateWorkoutScreen() {
     }
     setNewExerciseName('');
     setNewSetsInput('3x10');
+    setNewTimeInput('5');
+    setNewExType('reps');
     setNewRestInput('60');
   };
 
@@ -84,12 +106,19 @@ export default function CreateWorkoutScreen() {
     const ex = exercises[index];
     setNewExerciseName(ex.name);
     setNewRestInput(String(ex.restTime || 60));
+    setNewExType(ex.type || 'reps');
     
-    const allSame = ex.targetReps.every(r => r === ex.targetReps[0]);
-    if (allSame && ex.targetReps.length > 0) {
-      setNewSetsInput(`${ex.targetReps.length}x${ex.targetReps[0]}`);
+    if (ex.type === 'time') {
+      setNewTimeInput(String((ex.durationSeconds || 300) / 60));
     } else {
-      setNewSetsInput(ex.targetReps.join(', '));
+      if (ex.targetReps && ex.targetReps.length > 0) {
+        const allSame = ex.targetReps.every(r => r === ex.targetReps[0]);
+        if (allSame) {
+          setNewSetsInput(`${ex.targetReps.length}x${ex.targetReps[0]}`);
+        } else {
+          setNewSetsInput(ex.targetReps.join(', '));
+        }
+      }
     }
     setEditIndex(index);
   };
@@ -161,13 +190,45 @@ export default function CreateWorkoutScreen() {
           onChangeText={setNewExerciseName} 
           placeholder="Exercise Name (e.g. Squats)"
         />
-        <Text style={styles.label}>Sets & Reps (e.g. 2x10, 1x5)</Text>
-        <TextInput 
-          style={styles.input} 
-          value={newSetsInput} 
-          onChangeText={setNewSetsInput} 
-          placeholder="e.g. 10,10,5 or 3x10"
-        />
+
+        <View style={styles.typeToggle}>
+          <TouchableOpacity 
+            style={[styles.typeBtn, newExType === 'reps' && styles.typeBtnActive]} 
+            onPress={() => setNewExType('reps')}
+          >
+            <Text style={[styles.typeBtnTxt, newExType === 'reps' && styles.typeBtnTxtActive]}>Sets & Reps</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeBtn, newExType === 'time' && styles.typeBtnActive]} 
+            onPress={() => setNewExType('time')}
+          >
+            <Text style={[styles.typeBtnTxt, newExType === 'time' && styles.typeBtnTxtActive]}>Timed (Chrono)</Text>
+          </TouchableOpacity>
+        </View>
+
+        {newExType === 'reps' ? (
+          <>
+            <Text style={styles.label}>Sets & Reps (e.g. 2x10, 1x5)</Text>
+            <TextInput 
+              style={styles.input} 
+              value={newSetsInput} 
+              onChangeText={setNewSetsInput} 
+              placeholder="e.g. 10,10,5 or 3x10"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Duration (minutes)</Text>
+            <TextInput 
+              style={styles.input} 
+              value={newTimeInput} 
+              onChangeText={setNewTimeInput} 
+              placeholder="e.g. 5"
+              keyboardType="numeric"
+            />
+          </>
+        )}
+        
         <Text style={styles.label}>Rest Time (seconds)</Text>
         <TextInput 
           style={styles.input} 
@@ -188,7 +249,11 @@ export default function CreateWorkoutScreen() {
           <View key={ex.id} style={styles.exCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
-              <Text style={styles.exDetails}>{ex.targetReps.join(', ')} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
+              {ex.type === 'time' ? (
+                <Text style={styles.exDetails}>⏱ {Math.floor((ex.durationSeconds || 0)/60)}m {(ex.durationSeconds || 0)%60}s • {ex.restTime || 60}s Rest</Text>
+              ) : (
+                <Text style={styles.exDetails}>{ex.targetReps ? ex.targetReps.join(', ') : ''} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
+              )}
             </View>
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity style={styles.editBtn} onPress={() => handleEditExercise(index)}>
@@ -225,6 +290,11 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#fff', padding: 30, borderRadius: 18, marginBottom: 30, borderWidth: 1, borderColor: '#ddd', fontSize: 30 },
   addSection: { backgroundColor: '#e6f7f6', padding: 30, borderRadius: 23, marginBottom: 45 },
   sectionTitle: { fontSize: 39, fontWeight: 'bold', color: '#333', marginBottom: 23 },
+  typeToggle: { flexDirection: 'row', marginBottom: 30, gap: 15 },
+  typeBtn: { flex: 1, padding: 20, backgroundColor: '#fff', borderRadius: 15, alignItems: 'center', borderWidth: 2, borderColor: '#ddd' },
+  typeBtnActive: { borderColor: '#0bc0af', backgroundColor: '#e6f7f6' },
+  typeBtnTxt: { fontSize: 24, fontWeight: 'bold', color: '#666' },
+  typeBtnTxtActive: { color: '#0bc0af' },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { width: '48%' },
   addBtn: { backgroundColor: '#1b2a47', padding: 30, borderRadius: 18, alignItems: 'center', marginTop: 15 },

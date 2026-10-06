@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 
-export default function ExerciseItem({ exercise, currentSet, totalSets, previousData, initialWeight = '0', initialReps = '10', onLogSet }) {
+export default function ExerciseItem({ exercise, currentSet, totalSets, previousData, initialWeight = '0', initialReps = '10', onLogSet, onAddSet }) {
   const [weight, setWeight] = useState(initialWeight);
   const [reps, setReps] = useState(initialReps);
 
@@ -15,7 +15,14 @@ export default function ExerciseItem({ exercise, currentSet, totalSets, previous
       <View style={styles.header}>
         <Text style={styles.label}>CURRENT EXERCISE: </Text>
         <Text style={styles.title}>{exercise.name}</Text>
-        <Text style={styles.setInfo}>SET {currentSet} / {totalSets}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 15 }}>
+          <Text style={styles.setInfo}>SET {currentSet} / {totalSets}</Text>
+          {onAddSet && (
+            <TouchableOpacity style={styles.addSetBtn} onPress={onAddSet}>
+              <Text style={styles.addSetBtnTxt}>+ 1 SET</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       <View style={styles.inputsContainer}>
@@ -60,7 +67,9 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 24, color: '#666', fontWeight: 'bold', marginBottom: 8 },
   title: { fontSize: 48, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-  setInfo: { fontSize: 30, color: '#666', marginTop: 15, fontWeight: 'bold' },
+  setInfo: { fontSize: 30, color: '#666', fontWeight: 'bold', marginRight: 15 },
+  addSetBtn: { backgroundColor: '#0bc0af', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 15 },
+  addSetBtnTxt: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
   inputsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

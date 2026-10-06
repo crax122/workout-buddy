@@ -57,9 +57,15 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.startBtn, { backgroundColor: '#ff9800' }]} 
+          style={[styles.startBtn, { backgroundColor: '#ff9800', marginBottom: 10 }]} 
           onPress={() => navigation.navigate('OneRMCalculator')}>
           <Text style={styles.startBtnTxt}>🔢 1RM CALCULATOR</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.startBtn, { backgroundColor: '#2196F3' }]} 
+          onPress={() => navigation.navigate('Chrono')}>
+          <Text style={styles.startBtnTxt}>⏱️ CHRONO & TIMER</Text>
         </TouchableOpacity>
       </View>
 

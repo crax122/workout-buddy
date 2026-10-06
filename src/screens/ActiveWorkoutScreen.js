@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalTimer from '../components/GlobalTimer';
 import ExerciseItem from '../components/ExerciseItem';
 import RestTimer from '../components/RestTimer';
+import TimedExerciseItem from '../components/TimedExerciseItem';
 
 export default function ActiveWorkoutScreen() {
   const navigation = useNavigation();
@@ -20,19 +21,16 @@ export default function ActiveWorkoutScreen() {
   const activeExercise = exercises[activeExIndex];
 
   const handleLogSet = (data) => {
-    const updated = [...exercises];
-    const ex = updated[activeExIndex];
-    
-    // Initialize loggedSets array if not present
-    if (!ex.loggedSets) ex.loggedSets = [];
-    
-    // Save the logged set data (weight, reps)
-    ex.loggedSets.push(data);
-    ex.completedSets += 1;
-    
-    if (ex.completedSets >= ex.sets) {
-      ex.completed = true;
-    }
+    const updated = exercises.map((ex, idx) => {
+      if (idx !== activeExIndex) return ex;
+      const newCompletedSets = ex.completedSets + 1;
+      return {
+        ...ex,
+        loggedSets: [...(ex.loggedSets || []), data],
+        completedSets: newCompletedSets,
+        completed: newCompletedSets >= ex.sets
+      };
+    });
     
     setExercises(updated);
     
@@ -43,6 +41,21 @@ export default function ActiveWorkoutScreen() {
     } else {
       setIsResting(true);
     }
+  };
+
+  const handleAddSet = () => {
+    const updated = exercises.map((ex, idx) => {
+      if (idx !== activeExIndex) return ex;
+      const targetReps = ex.targetReps ? [...ex.targetReps, ex.targetReps[ex.targetReps.length - 1] || 10] : [10];
+      const newSets = ex.sets + 1;
+      return {
+        ...ex,
+        sets: newSets,
+        targetReps,
+        completed: ex.completedSets >= newSets
+      };
+    });
+    setExercises(updated);
   };
 
   const handleSkipRest = () => {
@@ -73,12 +86,17 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <View style={styles.container}>
-      <GlobalTimer 
-        isActive={timerActive} 
-        onPause={() => setTimerActive(false)} 
-        onPlay={() => setTimerActive(true)} 
-        onEnd={handleEndWorkout} 
-      />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <GlobalTimer 
+          isActive={timerActive} 
+          onPause={() => setTimerActive(false)} 
+          onPlay={() => setTimerActive(true)} 
+          onEnd={handleEndWorkout} 
+        />
+        <TouchableOpacity style={styles.chronoBtn} onPress={() => navigation.navigate('Chrono')}>
+          <Text style={styles.chronoBtnTxt}>⏱️</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.mainArea}>
         {/* Active List (Horizontal Scroll / Tabs style) */}
@@ -108,6 +126,20 @@ export default function ActiveWorkoutScreen() {
                   : activeExercise.name
               }
             />
+          ) : activeExercise.type === 'time' ? (
+            <TimedExerciseItem 
+              exercise={activeExercise} 
+              onComplete={() => {
+                const updated = exercises.map((ex, idx) => {
+                  if (idx !== activeExIndex) return ex;
+                  return { ...ex, completed: true };
+                });
+                setExercises(updated);
+                const allCompleted = updated.every(e => e.completed);
+                if (allCompleted) handleEndWorkout();
+                else setIsResting(true);
+              }}
+            />
           ) : (
             <ExerciseItem 
               exercise={activeExercise} 
@@ -115,8 +147,9 @@ export default function ActiveWorkoutScreen() {
               totalSets={activeExercise.sets} 
               previousData={activeExercise.prev}
               initialWeight={activeExercise.loggedSets && activeExercise.loggedSets.length > 0 ? activeExercise.loggedSets[activeExercise.loggedSets.length - 1].weight : '0'}
-              initialReps={String(activeExercise.targetReps ? activeExercise.targetReps[activeExercise.completedSets] || 10 : 10)}
+              initialReps={String(activeExercise.targetReps && activeExercise.targetReps.length > 0 ? (activeExercise.targetReps[activeExercise.completedSets] || 10) : 10)}
               onLogSet={handleLogSet}
+              onAddSet={handleAddSet}
             />
           )}
         </View>
@@ -146,6 +179,8 @@ const styles = StyleSheet.create({
   exTabActiveTxt: { color: '#fff' },
   content: { flex: 1 },
   backBtn: { backgroundColor: '#999', padding: 38, borderRadius: 23, alignItems: 'center', marginTop: 23 },
-  backBtnTxt: { color: '#fff', fontSize: 33, fontWeight: 'bold' }
+  backBtnTxt: { color: '#fff', fontSize: 33, fontWeight: 'bold' },
+  chronoBtn: { backgroundColor: '#2196F3', padding: 15, borderRadius: 15, marginLeft: 10, elevation: 2 },
+  chronoBtnTxt: { fontSize: 30 }
 });
 

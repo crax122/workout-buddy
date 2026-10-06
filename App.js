@@ -12,6 +12,7 @@ import SummaryScreen from './src/screens/SummaryScreen';
 import OneRMCalculatorScreen from './src/screens/OneRMCalculatorScreen';
 import CardioZonesScreen from './src/screens/CardioZonesScreen';
 import HistoryDetailsScreen from './src/screens/HistoryDetailsScreen';
+import ChronoScreen from './src/screens/ChronoScreen';
 import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -50,6 +51,7 @@ export default function App() {
         <Stack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
         <Stack.Screen name="CardioZones" component={CardioZonesScreen} />
         <Stack.Screen name="HistoryDetails" component={HistoryDetailsScreen} />
+        <Stack.Screen name="Chrono" component={ChronoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
