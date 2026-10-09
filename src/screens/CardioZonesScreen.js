@@ -74,6 +74,26 @@ export default function CardioZonesScreen() {
           <Text style={styles.cardioProtocol}>{selectedCardio.protocol}</Text>
           <Text style={styles.cardioDuration}>⏱ {selectedCardio.duration}</Text>
           <Text style={styles.cardioNote}>{selectedCardio.isFatigue ? "💡 " : "🎯 "}{selectedCardio.note}</Text>
+          
+          <TouchableOpacity 
+            style={[styles.randomBtn, { backgroundColor: '#1b2a47', marginTop: 15, marginBottom: 0, padding: 15 }]} 
+            onPress={() => {
+              navigation.navigate('ActiveWorkout', { 
+                workoutName: 'Cardio: ' + selectedCardio.name,
+                exercises: [{
+                  id: Date.now().toString(),
+                  name: selectedCardio.name,
+                  type: 'time',
+                  durationSeconds: 15 * 60, // Default to 15 mins
+                  restTime: 0,
+                  completed: false,
+                  notes: selectedCardio.protocol
+                }]
+              });
+            }}
+          >
+            <Text style={[styles.randomBtnTxt, { fontSize: 20 }]}>▶ DÉMARRER CE CARDIO</Text>
+          </TouchableOpacity>
         </View>
       )}
 

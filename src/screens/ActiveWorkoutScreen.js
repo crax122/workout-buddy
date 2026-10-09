@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalTimer from '../components/GlobalTimer';
 import ExerciseItem from '../components/ExerciseItem';
@@ -152,6 +152,20 @@ export default function ActiveWorkoutScreen() {
               onAddSet={handleAddSet}
             />
           )}
+
+          <View style={styles.notesContainer}>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Notes / Ajustements pour cet exercice..."
+              value={activeExercise.notes || ''}
+              onChangeText={(text) => {
+                const updated = [...exercises];
+                updated[activeExIndex].notes = text;
+                setExercises(updated);
+              }}
+              multiline
+            />
+          </View>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
@@ -181,6 +195,8 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#999', padding: 38, borderRadius: 23, alignItems: 'center', marginTop: 23 },
   backBtnTxt: { color: '#fff', fontSize: 33, fontWeight: 'bold' },
   chronoBtn: { backgroundColor: '#2196F3', padding: 15, borderRadius: 15, marginLeft: 10, elevation: 2 },
-  chronoBtnTxt: { fontSize: 30 }
+  chronoBtnTxt: { fontSize: 30 },
+  notesContainer: { marginTop: 15, backgroundColor: '#fff', padding: 15, borderRadius: 15 },
+  notesInput: { fontSize: 24, color: '#333', minHeight: 80, textAlignVertical: 'top' }
 });
 

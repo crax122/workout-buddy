@@ -105,3 +105,31 @@ export const deleteHistoryItem = async (historyItemToDelete) => {
     return false;
   }
 };
+
+export const updateHistoryItem = async (updatedHistoryItem) => {
+  try {
+    const ref = await ensureUserDoc();
+    const snap = await getDoc(ref);
+    let history = snap.data().history || [];
+    
+    // Update the item based on ID if available, otherwise fallback to matching date, name
+    history = history.map(item => {
+      if (item.id && updatedHistoryItem.id) {
+        if (item.id === updatedHistoryItem.id) {
+          return updatedHistoryItem;
+        }
+        return item;
+      }
+      if (item.date === updatedHistoryItem.date && item.name === updatedHistoryItem.name) {
+        return updatedHistoryItem;
+      }
+      return item;
+    });
+    
+    await updateDoc(ref, { history });
+    return true;
+  } catch (error) {
+    console.error("Error updating history item:", error);
+    return false;
+  }
+};
