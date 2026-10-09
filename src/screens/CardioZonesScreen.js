@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { cardioSessions, fatigueSessions } from '../data/cardioSessions';
 
 export default function CardioZonesScreen() {
   const navigation = useNavigation();
   const [age, setAge] = useState('30');
   const [restingHR, setRestingHR] = useState('60');
+  const [selectedCardio, setSelectedCardio] = useState(null);
 
   const calcMaxHR = () => 220 - (parseInt(age) || 0);
   const maxHR = calcMaxHR();
@@ -26,11 +28,54 @@ export default function CardioZonesScreen() {
     { percent: 100, label: 'Maximum Heart Rate' }
   ];
 
+  const [fatigueIndex, setFatigueIndex] = useState(0);
+
+  const generateRandomCardio = () => {
+    const isTired = window.confirm("Êtes-vous particulièrement fatigué aujourd'hui ?\n\n(OK = Oui, Annuler = Non)");
+    
+    if (isTired) {
+      const keys = ['A', 'B'];
+      const key = keys[fatigueIndex % 2];
+      const session = fatigueSessions[key];
+      setSelectedCardio({
+        name: session.name,
+        protocol: session.protocol,
+        duration: session.duration,
+        note: session.advantage,
+        isFatigue: true
+      });
+      setFatigueIndex(fatigueIndex + 1);
+    } else {
+      const randomIndex = Math.floor(Math.random() * cardioSessions.length);
+      const session = cardioSessions[randomIndex];
+      setSelectedCardio({
+        name: session.name,
+        protocol: session.protocol,
+        duration: session.duration,
+        note: session.goal,
+        isFatigue: false
+      });
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Cardio Zones (Karvonen)</Text>
       </View>
+
+      <TouchableOpacity style={styles.randomBtn} onPress={generateRandomCardio}>
+        <Text style={styles.randomBtnTxt}>🎲 GÉNÉRER UN CARDIO ALÉATOIRE</Text>
+      </TouchableOpacity>
+
+      {selectedCardio && (
+        <View style={styles.cardioCard}>
+          <Text style={styles.cardioName}>{selectedCardio.name}</Text>
+          <Text style={styles.cardioProtocol}>{selectedCardio.protocol}</Text>
+          <Text style={styles.cardioDuration}>⏱ {selectedCardio.duration}</Text>
+          <Text style={styles.cardioNote}>{selectedCardio.isFatigue ? "💡 " : "🎯 "}{selectedCardio.note}</Text>
+        </View>
+      )}
 
       <View style={styles.inputCard}>
         <View style={styles.row}>
@@ -91,6 +136,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 23 },
   header: { alignItems: 'center', marginVertical: 30 },
   title: { fontSize: 36, fontWeight: 'bold', color: '#e91e63' },
+  randomBtn: { backgroundColor: '#4caf50', padding: 25, borderRadius: 15, alignItems: 'center', marginBottom: 20, elevation: 3 },
+  randomBtnTxt: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
+  cardioCard: { backgroundColor: '#e6f7f6', padding: 25, borderRadius: 15, marginBottom: 30, borderWidth: 2, borderColor: '#0bc0af' },
+  cardioName: { fontSize: 28, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  cardioProtocol: { fontSize: 22, color: '#444', marginBottom: 10, fontStyle: 'italic' },
+  cardioDuration: { fontSize: 22, fontWeight: 'bold', color: '#e91e63', marginBottom: 10 },
+  cardioNote: { fontSize: 20, color: '#666' },
   inputCard: { backgroundColor: '#fff', padding: 30, borderRadius: 15, marginBottom: 30 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { width: '48%' },
