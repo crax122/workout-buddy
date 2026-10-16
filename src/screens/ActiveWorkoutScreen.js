@@ -37,7 +37,7 @@ export default function ActiveWorkoutScreen() {
     const allCompleted = updated.every(e => e.completed);
     
     if (allCompleted) {
-      handleEndWorkout();
+      handleEndWorkout(updated);
     } else {
       setIsResting(true);
     }
@@ -67,11 +67,12 @@ export default function ActiveWorkoutScreen() {
     }
   };
 
-  const handleEndWorkout = () => {
+  const handleEndWorkout = (finalExercises) => {
     // Pass both workoutName and exercises to calculate volume and save history.
+    const exercisesToSave = Array.isArray(finalExercises) ? finalExercises : exercises;
     navigation.navigate('Summary', { 
       workoutName: route.params?.workoutName || 'My Workout', 
-      exercises 
+      exercises: exercisesToSave
     });
   };
 
@@ -85,7 +86,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <GlobalTimer 
           isActive={timerActive} 
@@ -128,15 +129,27 @@ export default function ActiveWorkoutScreen() {
             />
           ) : activeExercise.type === 'time' ? (
             <TimedExerciseItem 
-              exercise={activeExercise} 
+              key={activeExercise.id}
+              exercise={activeExercise}
+              onAdjustTime={(deltaSeconds, newRemainingSeconds) => {
+                setExercises(prevExercises => prevExercises.map((ex, idx) => {
+                  if (idx !== activeExIndex) return ex;
+                  const currentDuration = ex.durationSeconds || 300;
+                  return {
+                    ...ex,
+                    durationSeconds: Math.max(0, currentDuration + deltaSeconds),
+                    remainingSeconds: newRemainingSeconds
+                  };
+                }));
+              }}
               onComplete={() => {
                 const updated = exercises.map((ex, idx) => {
                   if (idx !== activeExIndex) return ex;
-                  return { ...ex, completed: true };
+                  return { ...ex, completed: true, remainingSeconds: 0 };
                 });
                 setExercises(updated);
                 const allCompleted = updated.every(e => e.completed);
-                if (allCompleted) handleEndWorkout();
+                if (allCompleted) handleEndWorkout(updated);
                 else setIsResting(true);
               }}
             />
@@ -176,7 +189,7 @@ export default function ActiveWorkoutScreen() {
           <Text style={styles.backBtnTxt}>FINISH & SAVE</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

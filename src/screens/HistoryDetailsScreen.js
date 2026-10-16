@@ -104,8 +104,38 @@ export default function HistoryDetailsScreen() {
                   )}
                 </View>
               ))
+            ) : ex.type === 'time' ? (
+              <View style={styles.setRow}>
+                <Text style={styles.setDetail}>
+                  ⏱ Durée : {Math.floor((ex.durationSeconds || 0) / 60)}m {(ex.durationSeconds || 0) % 60}s
+                </Text>
+                {isEditing && (
+                  <View style={[styles.editInputsRow, { gap: 8, marginLeft: 15 }]}>
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#ffe6e6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
+                      onPress={() => {
+                        const newExercises = [...editedItem.exercises];
+                        newExercises[idx].durationSeconds = Math.max(0, (ex.durationSeconds || 0) - 60);
+                        setEditedItem({ ...editedItem, exercises: newExercises });
+                      }}
+                    >
+                      <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 18 }}>-1m</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{ backgroundColor: '#e6f7f6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
+                      onPress={() => {
+                        const newExercises = [...editedItem.exercises];
+                        newExercises[idx].durationSeconds = (ex.durationSeconds || 0) + 60;
+                        setEditedItem({ ...editedItem, exercises: newExercises });
+                      }}
+                    >
+                      <Text style={{ color: '#0bc0af', fontWeight: 'bold', fontSize: 18 }}>+1m</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             ) : (
-              <Text style={styles.setDetail}>{ex.type === 'time' ? "Cardio / Temps" : "Aucun set loggé."}</Text>
+              <Text style={styles.setDetail}>Aucun set loggé.</Text>
             )}
 
             {/* Notes Section */}

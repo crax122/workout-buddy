@@ -105,28 +105,54 @@ export default function ChronoScreen() {
         </View>
       ) : (
         <View style={styles.content}>
-          {!tActive && tTime === 60 && (
+          {!tActive && (
             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 20}}>
               <Text style={styles.label}>Seconds: </Text>
-              <TextInput style={styles.input} value={tInput} onChangeText={setTInput} keyboardType="numeric" />
+              <TextInput
+                style={styles.input}
+                value={tInput}
+                onChangeText={(val) => {
+                  setTInput(val);
+                  const secs = parseInt(val);
+                  if (!isNaN(secs) && secs >= 0) setTTime(secs);
+                }}
+                keyboardType="numeric"
+              />
             </View>
           )}
           <Text style={styles.display}>{formatT(tTime)}</Text>
+          <View style={styles.adjustRow}>
+            <TouchableOpacity style={[styles.adjustBtn, styles.decreaseBtn]} onPress={() => setTTime(t => Math.max(0, t - 60))}>
+              <Text style={styles.decreaseBtnTxt}>-1m</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.adjustBtn, styles.decreaseBtn]} onPress={() => setTTime(t => Math.max(0, t - 15))}>
+              <Text style={styles.decreaseBtnTxt}>-15s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.adjustBtn, styles.increaseBtn]} onPress={() => setTTime(t => t + 15)}>
+              <Text style={styles.increaseBtnTxt}>+15s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.adjustBtn, styles.increaseBtn]} onPress={() => setTTime(t => t + 60)}>
+              <Text style={styles.increaseBtnTxt}>+1m</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.controls}>
-            {!tActive && tTime === parseInt(tInput) ? (
-              <TouchableOpacity style={[styles.btn, styles.btnStart]} onPress={startTimer}>
-                <Text style={styles.btnTxt}>START</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-                <TouchableOpacity style={[styles.btn, tActive ? styles.btnPause : styles.btnStart]} onPress={() => setTActive(!tActive)}>
-                  <Text style={styles.btnTxt}>{tActive ? "PAUSE" : "RESUME"}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnReset]} onPress={() => { setTActive(false); setTTime(parseInt(tInput) || 60); }}>
-                  <Text style={styles.btnTxt}>RESET</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <TouchableOpacity
+              style={[styles.btn, tActive ? styles.btnPause : styles.btnStart]}
+              onPress={() => {
+                if (!tActive && tTime === 0) {
+                  const secs = parseInt(tInput) || 60;
+                  setTTime(secs);
+                  setTActive(true);
+                } else {
+                  setTActive(!tActive);
+                }
+              }}
+            >
+              <Text style={styles.btnTxt}>{tActive ? "PAUSE" : "START"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, styles.btnReset]} onPress={() => { setTActive(false); setTTime(parseInt(tInput) || 60); }}>
+              <Text style={styles.btnTxt}>RESET</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -147,7 +173,13 @@ const styles = StyleSheet.create({
   tabTxt: { fontSize: 24, fontWeight: 'bold', color: '#888' },
   tabTxtActive: { color: '#0bc0af' },
   content: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
-  display: { fontSize: 100, fontWeight: 'bold', color: '#333', marginBottom: 40 },
+  display: { fontSize: 100, fontWeight: 'bold', color: '#333', marginBottom: 25 },
+  adjustRow: { flexDirection: 'row', gap: 12, width: '100%', marginBottom: 25 },
+  adjustBtn: { flex: 1, paddingVertical: 20, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  decreaseBtn: { backgroundColor: '#ffe6e6', borderColor: '#ff4d4d' },
+  increaseBtn: { backgroundColor: '#e6f7f6', borderColor: '#0bc0af' },
+  decreaseBtnTxt: { color: '#d32f2f', fontSize: 26, fontWeight: 'bold' },
+  increaseBtnTxt: { color: '#0bc0af', fontSize: 26, fontWeight: 'bold' },
   label: { fontSize: 30, fontWeight: 'bold', color: '#666' },
   input: { fontSize: 30, fontWeight: 'bold', backgroundColor: '#fff', padding: 15, borderRadius: 10, minWidth: 100, textAlign: 'center' },
   controls: { flexDirection: 'row', gap: 20, width: '100%' },
