@@ -83,6 +83,8 @@ export default function CreateWorkoutScreen() {
         restTime: parseInt(newRestInput) || 60,
         completedSets: 0,
         prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
+        ...(editIndex !== null && exercises[editIndex].lastWeight !== undefined ? { lastWeight: exercises[editIndex].lastWeight } : {}),
+        ...(editIndex !== null && exercises[editIndex].previousLoggedSets !== undefined ? { previousLoggedSets: exercises[editIndex].previousLoggedSets } : {}),
         completed: false
       };
     }

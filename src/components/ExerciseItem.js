@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 
-export default function ExerciseItem({ exercise, currentSet, totalSets, previousData, initialWeight = '0', initialReps = '10', onLogSet, onAddSet }) {
-  const [weight, setWeight] = useState(initialWeight);
-  const [reps, setReps] = useState(initialReps);
+export default function ExerciseItem({ exercise, currentSet, totalSets, previousData, initialWeight = '0', initialReps = '10', onLogSet, onAddSet, onDraftChange }) {
+  const [weight, setWeight] = useState(String(initialWeight));
+  const [reps, setReps] = useState(String(initialReps));
+
+  useEffect(() => {
+    setWeight(String(initialWeight));
+    setReps(String(initialReps));
+  }, [exercise.id, currentSet, initialWeight, initialReps]);
+
+  useEffect(() => {
+    if (onDraftChange) {
+      onDraftChange(exercise.id, { weight, reps });
+    }
+  }, [exercise.id, weight, reps]);
 
   const adjustValue = (setter, value, amount) => {
     const num = parseFloat(value) || 0;

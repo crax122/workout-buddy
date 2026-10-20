@@ -1,35 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalTimer from '../components/GlobalTimer';
 import ExerciseItem from '../components/ExerciseItem';
 import RestTimer from '../components/RestTimer';
 import TimedExerciseItem from '../components/TimedExerciseItem';
+import { getHistory, enrichExercisesWithHistory, saveLocalWeights } from '../services/db';
 
 export default function ActiveWorkoutScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const workoutName = route.params?.workoutName || 'My Workout';
   
   const [timerActive, setTimerActive] = useState(true);
+  const draftsRef = useRef({});
   
-  // Use exercises from route params, or default fallback
-  const [exercises, setExercises] = useState(route.params?.exercises || []);
+  // Use exercises from route params, enriched with any cached previous weights
+  const [exercises, setExercises] = useState(() => {
+    const raw = route.params?.exercises || [];
+    const enriched = enrichExercisesWithHistory(raw, [], workoutName);
+    return enriched.map(ex => ({
+      ...ex,
+      completed: false,
+      completedSets: 0,
+      loggedSets: []
+    }));
+  });
 
   const [activeExIndex, setActiveExIndex] = useState(0);
   const [isResting, setIsResting] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    getHistory().then(history => {
+      if (!mounted || !history || history.length === 0) return;
+      setExercises(prev => {
+        const enriched = enrichExercisesWithHistory(prev, history, workoutName);
+        return prev.map((ex, idx) => ({
+          ...ex,
+          lastWeight: enriched[idx]?.lastWeight ?? ex.lastWeight,
+          previousLoggedSets: enriched[idx]?.previousLoggedSets ?? ex.previousLoggedSets,
+          prev: enriched[idx]?.prev ?? ex.prev
+        }));
+      });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [workoutName]);
+
   const activeExercise = exercises[activeExIndex];
+
+  const getInitialWeight = (ex) => {
+    if (!ex) return '0';
+    const setIdx = ex.completedSets || 0;
+    const prevSets = ex.previousLoggedSets || [];
+    if (ex.loggedSets && ex.loggedSets.length > 0) {
+      const lastLogged = ex.loggedSets[ex.loggedSets.length - 1];
+      if (
+        setIdx > 0 &&
+        prevSets[setIdx - 1] &&
+        String(lastLogged.weight) === String(prevSets[setIdx - 1].weight) &&
+        prevSets[setIdx]?.weight !== undefined
+      ) {
+        return String(prevSets[setIdx].weight);
+      }
+      return String(lastLogged.weight);
+    }
+    if (prevSets.length > 0 && prevSets[0].weight !== undefined) {
+      return String(prevSets[0].weight);
+    }
+    if (ex.lastWeight !== undefined && ex.lastWeight !== null && ex.lastWeight !== '') {
+      return String(ex.lastWeight);
+    }
+    return '0';
+  };
 
   const handleLogSet = (data) => {
     const updated = exercises.map((ex, idx) => {
       if (idx !== activeExIndex) return ex;
       const newCompletedSets = ex.completedSets + 1;
-      return {
+      const newLoggedSets = [...(ex.loggedSets || []), data];
+      const updatedEx = {
         ...ex,
-        loggedSets: [...(ex.loggedSets || []), data],
+        loggedSets: newLoggedSets,
         completedSets: newCompletedSets,
         completed: newCompletedSets >= ex.sets
       };
+      saveLocalWeights([updatedEx]);
+      return updatedEx;
     });
     
     setExercises(updated);
@@ -68,10 +127,24 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleEndWorkout = (finalExercises) => {
-    // Pass both workoutName and exercises to calculate volume and save history.
-    const exercisesToSave = Array.isArray(finalExercises) ? finalExercises : exercises;
+    const baseExercises = Array.isArray(finalExercises) ? finalExercises : exercises;
+    const exercisesToSave = baseExercises.map(ex => {
+      if (ex.type !== 'time' && (!ex.loggedSets || ex.loggedSets.length === 0)) {
+        const draft = draftsRef.current[ex.id];
+        if (draft && draft.weight !== undefined && String(draft.weight) !== '0' && String(draft.weight).trim() !== '') {
+          return {
+            ...ex,
+            loggedSets: [{ weight: String(draft.weight), reps: String(draft.reps || '10') }]
+          };
+        }
+      }
+      return ex;
+    });
+
+    saveLocalWeights(exercisesToSave);
+
     navigation.navigate('Summary', { 
-      workoutName: route.params?.workoutName || 'My Workout', 
+      workoutName, 
       exercises: exercisesToSave
     });
   };
@@ -155,14 +228,18 @@ export default function ActiveWorkoutScreen() {
             />
           ) : (
             <ExerciseItem 
+              key={`${activeExercise.id}-${activeExercise.completedSets}`}
               exercise={activeExercise} 
               currentSet={activeExercise.completedSets + 1} 
               totalSets={activeExercise.sets} 
-              previousData={activeExercise.prev}
-              initialWeight={activeExercise.loggedSets && activeExercise.loggedSets.length > 0 ? activeExercise.loggedSets[activeExercise.loggedSets.length - 1].weight : '0'}
+              previousData={activeExercise.prev || 'No previous data'}
+              initialWeight={getInitialWeight(activeExercise)}
               initialReps={String(activeExercise.targetReps && activeExercise.targetReps.length > 0 ? (activeExercise.targetReps[activeExercise.completedSets] || 10) : 10)}
               onLogSet={handleLogSet}
               onAddSet={handleAddSet}
+              onDraftChange={(exId, draft) => {
+                draftsRef.current[exId] = draft;
+              }}
             />
           )}
 
@@ -212,4 +289,3 @@ const styles = StyleSheet.create({
   notesContainer: { marginTop: 15, backgroundColor: '#fff', padding: 15, borderRadius: 15 },
   notesInput: { fontSize: 24, color: '#333', minHeight: 80, textAlignVertical: 'top' }
 });
-

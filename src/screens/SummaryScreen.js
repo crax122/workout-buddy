@@ -7,6 +7,7 @@ export default function SummaryScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const savedRef = useRef(false);
+  const savePromiseRef = useRef(null);
   
   const exercises = route.params?.exercises || [];
   const workoutName = route.params?.workoutName || 'Completed Workout';
@@ -27,8 +28,8 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     if (!savedRef.current) {
-      saveHistory();
       savedRef.current = true;
+      savePromiseRef.current = saveHistory();
     }
   }, []);
 
@@ -44,6 +45,17 @@ export default function SummaryScreen() {
     await dbSaveHistory(historyItem);
   };
 
+  const handleBackToHome = async () => {
+    if (savePromiseRef.current) {
+      try {
+        await savePromiseRef.current;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    navigation.navigate('Home');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -55,7 +67,7 @@ export default function SummaryScreen() {
           <Text style={styles.detailText}>Volume: {totalVolume} kg</Text>
         </View>
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBackToHome}>
           <Text style={styles.backBtnTxt}>BACK TO HOME</Text>
         </TouchableOpacity>
       </View>
