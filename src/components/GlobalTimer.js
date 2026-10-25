@@ -40,25 +40,26 @@ export default function GlobalTimer({ isActive, onPause, onPlay, onEnd }) {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: '#0bc0af',
-    padding: 38,
-    borderRadius: 30,
-    marginVertical: 23,
+    padding: 12,
+    borderRadius: 14,
+    marginVertical: 8,
   },
   label: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 15,
+    marginTop: 6,
   },
   time: {
     color: '#fff',
-    fontSize: 72,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   controls: {
@@ -66,18 +67,18 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: '#fff',
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 23,
+    marginLeft: 8,
   },
   endBtn: {
     backgroundColor: '#ff4d4d',
   },
   endTxt: {
     color: '#fff',
-    fontSize: 36,
+    fontSize: 16,
   }
 });

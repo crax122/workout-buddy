@@ -115,7 +115,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={{padding: 25, backgroundColor: '#ffe6e6', borderRadius: 15}}
+            style={{padding: 10, backgroundColor: '#ffe6e6', borderRadius: 10}}
             onPress={async () => {
               if (window.confirm("Voulez-vous vraiment supprimer cet historique ?")) {
                 const success = await deleteHistoryItem(item);
@@ -127,7 +127,7 @@ export default function HomeScreen() {
               }
             }}
           >
-            <Text style={{fontSize: 36, color: '#ff4d4d'}}>❌</Text>
+            <Text style={{fontSize: 18, color: '#ff4d4d'}}>❌</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -137,22 +137,22 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 30 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 45 },
-  title: { fontSize: 54, fontWeight: 'bold', color: '#0bc0af' },
-  actionCol: { flexDirection: 'column', marginBottom: 45 },
-  startBtn: { backgroundColor: '#0bc0af', padding: 38, borderRadius: 23, alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  startBtnTxt: { color: '#fff', fontSize: 33, fontWeight: 'bold', textAlign: 'center' },
-  savedCard: { flexDirection: 'column', backgroundColor: '#fff', padding: 38, borderRadius: 23, marginBottom: 30, elevation: 2 },
-  savedTitle: { fontSize: 39, fontWeight: 'bold', color: '#333', marginBottom: 30 },
-  launchBtn: { flex: 1, backgroundColor: '#4caf50', paddingVertical: 27, paddingHorizontal: 30, borderRadius: 18, alignItems: 'center' },
-  launchBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 30 },
-  sectionTitle: { fontSize: 42, fontWeight: 'bold', color: '#333', marginBottom: 23 },
-  chartCard: { backgroundColor: '#fff', padding: 30, borderRadius: 23, marginBottom: 38 },
-  chartTitle: { fontSize: 30, fontWeight: 'bold', marginBottom: 23 },
-  chartPlaceholder: { height: 300, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderRadius: 15 },
-  historyCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 30, borderRadius: 23, marginBottom: 23, alignItems: 'center', elevation: 2 },
-  historyIcon: { width: 90, height: 90, backgroundColor: '#e6f7f6', borderRadius: 45, justifyContent: 'center', alignItems: 'center', marginRight: 30 },
-  historyDate: { fontSize: 33, fontWeight: 'bold', color: '#333' },
-  historyName: { fontSize: 30, color: '#666' }
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 16 },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#0bc0af' },
+  actionCol: { flexDirection: 'column', marginBottom: 10 },
+  startBtn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  startBtnTxt: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  savedCard: { flexDirection: 'column', backgroundColor: '#fff', padding: 16, borderRadius: 14, marginBottom: 14, elevation: 2 },
+  savedTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+  launchBtn: { flex: 1, backgroundColor: '#4caf50', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
+  launchBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 12 },
+  chartCard: { backgroundColor: '#fff', padding: 16, borderRadius: 14, marginBottom: 18 },
+  chartTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  chartPlaceholder: { height: 150, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', borderRadius: 10 },
+  historyCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 14, borderRadius: 14, marginBottom: 10, alignItems: 'center', elevation: 1 },
+  historyIcon: { width: 42, height: 42, backgroundColor: '#e6f7f6', borderRadius: 21, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  historyDate: { fontSize: 15, fontWeight: 'bold', color: '#333' },
+  historyName: { fontSize: 14, color: '#666' }
 });

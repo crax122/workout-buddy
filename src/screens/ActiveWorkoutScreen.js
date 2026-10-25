@@ -271,21 +271,21 @@ export default function ActiveWorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 23 },
-  mainArea: { flex: 1, flexDirection: 'column', marginTop: 15 },
-  tabContainer: { backgroundColor: '#1b2a47', borderRadius: 23, marginBottom: 23, paddingVertical: 15 },
-  tabScroll: { paddingHorizontal: 15, alignItems: 'center' },
-  exTabItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 23, paddingHorizontal: 38, borderRadius: 45, marginRight: 23, backgroundColor: '#2d436a' },
+  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 14 },
+  mainArea: { flex: 1, flexDirection: 'column', marginTop: 8 },
+  tabContainer: { backgroundColor: '#1b2a47', borderRadius: 14, marginBottom: 12, paddingVertical: 8 },
+  tabScroll: { paddingHorizontal: 10, alignItems: 'center' },
+  exTabItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 10, backgroundColor: '#2d436a' },
   exTabActiveItem: { backgroundColor: '#0bc0af' },
-  exListCheck: { color: '#fff', marginRight: 15, fontSize: 30 },
-  exListDot: { color: '#a0a0a0', marginRight: 15, fontSize: 30 },
-  exTabTxt: { color: '#ccc', fontSize: 33, fontWeight: 'bold' },
+  exListCheck: { color: '#fff', marginRight: 6, fontSize: 16 },
+  exListDot: { color: '#a0a0a0', marginRight: 6, fontSize: 16 },
+  exTabTxt: { color: '#ccc', fontSize: 15, fontWeight: 'bold' },
   exTabActiveTxt: { color: '#fff' },
   content: { flex: 1 },
-  backBtn: { backgroundColor: '#999', padding: 38, borderRadius: 23, alignItems: 'center', marginTop: 23 },
-  backBtnTxt: { color: '#fff', fontSize: 33, fontWeight: 'bold' },
-  chronoBtn: { backgroundColor: '#2196F3', padding: 15, borderRadius: 15, marginLeft: 10, elevation: 2 },
-  chronoBtnTxt: { fontSize: 30 },
-  notesContainer: { marginTop: 15, backgroundColor: '#fff', padding: 15, borderRadius: 15 },
-  notesInput: { fontSize: 24, color: '#333', minHeight: 80, textAlignVertical: 'top' }
+  backBtn: { backgroundColor: '#999', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  backBtnTxt: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+  chronoBtn: { backgroundColor: '#2196F3', padding: 12, borderRadius: 12, marginLeft: 8, elevation: 2 },
+  chronoBtnTxt: { fontSize: 22 },
+  notesContainer: { marginTop: 10, backgroundColor: '#fff', padding: 12, borderRadius: 12 },
+  notesInput: { fontSize: 15, color: '#333', minHeight: 60, textAlignVertical: 'top' }
 });

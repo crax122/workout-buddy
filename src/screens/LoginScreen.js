@@ -62,11 +62,11 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1b2a47', justifyContent: 'center', padding: 45 },
-  title: { fontSize: 72, fontWeight: 'bold', color: '#0bc0af', textAlign: 'center', marginBottom: 23 },
-  subtitle: { fontSize: 36, color: '#fff', textAlign: 'center', marginBottom: 60 },
-  input: { backgroundColor: '#fff', padding: 30, borderRadius: 23, marginBottom: 30, fontSize: 30 },
-  btn: { backgroundColor: '#0bc0af', padding: 30, borderRadius: 23, alignItems: 'center' },
-  btnTxt: { color: '#fff', fontSize: 36, fontWeight: 'bold' },
-  toggleTxt: { color: '#bbb', textAlign: 'center', fontSize: 27 }
+  container: { flex: 1, backgroundColor: '#1b2a47', justifyContent: 'center', padding: 24 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#0bc0af', textAlign: 'center', marginBottom: 10 },
+  subtitle: { fontSize: 18, color: '#fff', textAlign: 'center', marginBottom: 28 },
+  input: { backgroundColor: '#fff', padding: 14, borderRadius: 12, marginBottom: 14, fontSize: 16 },
+  btn: { backgroundColor: '#0bc0af', padding: 15, borderRadius: 12, alignItems: 'center' },
+  btnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  toggleTxt: { color: '#bbb', textAlign: 'center', fontSize: 15 }
 });
