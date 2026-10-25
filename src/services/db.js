@@ -5,9 +5,20 @@ const LOCAL_WEIGHTS_KEY = 'workout_buddy_last_weights';
 
 const cleanData = (obj) => JSON.parse(JSON.stringify(obj));
 
+export const formatSetSummary = (s) => {
+  if (!s) return '';
+  if (s.isRestPause && Array.isArray(s.segments) && s.segments.length > 0) {
+    const chain = s.segments
+      .map((seg, i) => (i < s.segments.length - 1 ? `${seg.reps} reps + ${seg.rest || 15}s repos` : `${seg.reps} reps`))
+      .join(' + ');
+    return `${s.weight} kg (${chain})`;
+  }
+  return `${s.weight} kg x ${s.reps}`;
+};
+
 export const formatPrevSets = (loggedSets) => {
   if (!loggedSets || loggedSets.length === 0) return 'No previous data';
-  return loggedSets.map(s => `${s.weight} kg x ${s.reps}`).join(', ');
+  return loggedSets.map(formatSetSummary).join(', ');
 };
 
 export const getLocalWeightsMap = () => {

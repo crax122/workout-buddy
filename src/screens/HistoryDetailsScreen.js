@@ -3,6 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { deleteHistoryItem, updateHistoryItem } from '../services/db';
 
+const formatRpChain = (segments) => {
+  if (!Array.isArray(segments) || segments.length === 0) return '';
+  return segments
+    .map((seg, i) =>
+      i < segments.length - 1
+        ? `${seg.reps} reps + ${seg.rest || 15}s repos`
+        : `${seg.reps} reps`
+    )
+    .join(' + ');
+};
+
 export default function HistoryDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -24,19 +35,26 @@ export default function HistoryDetailsScreen() {
   }
 
   const handleSave = async () => {
-    // Recalculate volume just in case
     let newVolume = 0;
-    if (editedItem.exercises) {
-      editedItem.exercises.forEach(ex => {
-        if (ex.type !== 'time' && ex.loggedSets) {
-          ex.loggedSets.forEach(set => {
-            newVolume += (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0);
-          });
+    const normalizedExercises = (editedItem.exercises || []).map(ex => {
+      if (ex.type === 'time' || !ex.loggedSets) return ex;
+      const updatedSets = ex.loggedSets.map(set => {
+        if (set.isRestPause && Array.isArray(set.segments) && set.segments.length > 0) {
+          const sumReps = set.segments.reduce((acc, seg) => acc + (parseInt(seg.reps) || 0), 0);
+          newVolume += (parseFloat(set.weight) || 0) * sumReps;
+          return {
+            ...set,
+            reps: String(sumReps),
+            summary: formatRpChain(set.segments)
+          };
         }
+        newVolume += (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0);
+        return set;
       });
-    }
+      return { ...ex, loggedSets: updatedSets };
+    });
 
-    const updated = { ...editedItem, volume: newVolume };
+    const updated = { ...editedItem, exercises: normalizedExercises, volume: newVolume };
     const success = await updateHistoryItem(updated);
     
     if (success) {
@@ -70,37 +88,99 @@ export default function HistoryDetailsScreen() {
             
             {ex.loggedSets && ex.loggedSets.length > 0 ? (
               ex.loggedSets.map((set, sIdx) => (
-                <View key={sIdx} style={styles.setRow}>
-                  <Text style={styles.setLabel}>Set {sIdx + 1}:</Text>
-                  {isEditing ? (
-                    <View style={styles.editInputsRow}>
-                      <TextInput 
-                        style={styles.editInput} 
-                        keyboardType="numeric"
-                        value={String(set.weight)}
-                        onChangeText={(val) => {
-                          const newExercises = [...editedItem.exercises];
-                          newExercises[idx].loggedSets[sIdx].weight = val;
-                          setEditedItem({...editedItem, exercises: newExercises});
-                        }}
-                      />
-                      <Text style={styles.setLabel}> kg x </Text>
-                      <TextInput 
-                        style={styles.editInput} 
-                        keyboardType="numeric"
-                        value={String(set.reps)}
-                        onChangeText={(val) => {
-                          const newExercises = [...editedItem.exercises];
-                          newExercises[idx].loggedSets[sIdx].reps = val;
-                          setEditedItem({...editedItem, exercises: newExercises});
-                        }}
-                      />
-                      <Text style={styles.setLabel}> reps</Text>
+                <View key={sIdx} style={styles.setRowWrapper}>
+                  {set.isRestPause && Array.isArray(set.segments) && set.segments.length > 0 ? (
+                    <View style={styles.rpSetBox}>
+                      <Text style={styles.setLabel}>Set {sIdx + 1} (Rest-Pause):</Text>
+                      {isEditing ? (
+                        <View style={{ marginTop: 6 }}>
+                          <View style={styles.editInputsRow}>
+                            <Text style={styles.setLabel}>Poids : </Text>
+                            <TextInput
+                              style={styles.editInput}
+                              keyboardType="numeric"
+                              value={String(set.weight)}
+                              onChangeText={(val) => {
+                                const newExercises = [...editedItem.exercises];
+                                newExercises[idx].loggedSets[sIdx].weight = val;
+                                setEditedItem({ ...editedItem, exercises: newExercises });
+                              }}
+                            />
+                            <Text style={styles.setLabel}> kg</Text>
+                          </View>
+                          {set.segments.map((seg, segIdx) => (
+                            <View key={segIdx} style={[styles.editInputsRow, { marginTop: 4, flexWrap: 'wrap' }]}>
+                              <Text style={styles.setLabel}>P{segIdx + 1}: </Text>
+                              <TextInput
+                                style={styles.editInput}
+                                keyboardType="numeric"
+                                value={String(seg.reps)}
+                                onChangeText={(val) => {
+                                  const newExercises = [...editedItem.exercises];
+                                  newExercises[idx].loggedSets[sIdx].segments[segIdx].reps = val;
+                                  setEditedItem({ ...editedItem, exercises: newExercises });
+                                }}
+                              />
+                              <Text style={styles.setLabel}> reps</Text>
+                              {segIdx < set.segments.length - 1 && (
+                                <>
+                                  <Text style={styles.setLabel}> + </Text>
+                                  <TextInput
+                                    style={styles.editInput}
+                                    keyboardType="numeric"
+                                    value={String(seg.rest || '15')}
+                                    onChangeText={(val) => {
+                                      const newExercises = [...editedItem.exercises];
+                                      newExercises[idx].loggedSets[sIdx].segments[segIdx].rest = val;
+                                      setEditedItem({ ...editedItem, exercises: newExercises });
+                                    }}
+                                  />
+                                  <Text style={styles.setLabel}>s repos</Text>
+                                </>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.setDetail}>
+                          {set.weight} kg — {formatRpChain(set.segments)}
+                        </Text>
+                      )}
                     </View>
                   ) : (
-                    <Text style={styles.setDetail}>
-                      {set.weight} kg x {set.reps} reps
-                    </Text>
+                    <View style={styles.setRow}>
+                      <Text style={styles.setLabel}>Set {sIdx + 1}:</Text>
+                      {isEditing ? (
+                        <View style={styles.editInputsRow}>
+                          <TextInput 
+                            style={styles.editInput} 
+                            keyboardType="numeric"
+                            value={String(set.weight)}
+                            onChangeText={(val) => {
+                              const newExercises = [...editedItem.exercises];
+                              newExercises[idx].loggedSets[sIdx].weight = val;
+                              setEditedItem({...editedItem, exercises: newExercises});
+                            }}
+                          />
+                          <Text style={styles.setLabel}> kg x </Text>
+                          <TextInput 
+                            style={styles.editInput} 
+                            keyboardType="numeric"
+                            value={String(set.reps)}
+                            onChangeText={(val) => {
+                              const newExercises = [...editedItem.exercises];
+                              newExercises[idx].loggedSets[sIdx].reps = val;
+                              setEditedItem({...editedItem, exercises: newExercises});
+                            }}
+                          />
+                          <Text style={styles.setLabel}> reps</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.setDetail}>
+                          {set.weight} kg x {set.reps} reps
+                        </Text>
+                      )}
+                    </View>
                   )}
                 </View>
               ))
@@ -119,7 +199,7 @@ export default function HistoryDetailsScreen() {
                         setEditedItem({ ...editedItem, exercises: newExercises });
                       }}
                     >
-                      <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 18 }}>-1m</Text>
+                      <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 15 }}>-1m</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={{ backgroundColor: '#e6f7f6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
@@ -129,7 +209,7 @@ export default function HistoryDetailsScreen() {
                         setEditedItem({ ...editedItem, exercises: newExercises });
                       }}
                     >
-                      <Text style={{ color: '#0bc0af', fontWeight: 'bold', fontSize: 18 }}>+1m</Text>
+                      <Text style={{ color: '#0bc0af', fontWeight: 'bold', fontSize: 15 }}>+1m</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -192,8 +272,10 @@ const styles = StyleSheet.create({
   editBtnTxt: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   exCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, elevation: 1 },
   exName: { fontSize: 17, fontWeight: 'bold', marginBottom: 6, color: '#1b2a47' },
-  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, marginLeft: 10 },
-  setLabel: { fontSize: 15, color: '#555' },
+  setRowWrapper: { marginBottom: 6 },
+  rpSetBox: { marginLeft: 10, marginBottom: 4 },
+  setRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, marginLeft: 10 },
+  setLabel: { fontSize: 15, color: '#555', fontWeight: 'bold' },
   setDetail: { fontSize: 15, color: '#555', marginLeft: 6 },
   editInputsRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 6 },
   editInput: { borderBottomWidth: 1, borderBottomColor: '#0bc0af', fontSize: 15, minWidth: 36, textAlign: 'center', padding: 0 },

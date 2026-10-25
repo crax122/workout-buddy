@@ -162,7 +162,11 @@ export default function ActiveWorkoutScreen() {
         if (draft && draft.weight !== undefined && String(draft.weight) !== '0' && String(draft.weight).trim() !== '') {
           return {
             ...ex,
-            loggedSets: [{ weight: String(draft.weight), reps: String(draft.reps || '10') }]
+            loggedSets: [{
+              weight: String(draft.weight),
+              reps: String(draft.reps || '10'),
+              ...(draft.isRestPause ? { isRestPause: true, segments: draft.segments } : {})
+            }]
           };
         }
       }

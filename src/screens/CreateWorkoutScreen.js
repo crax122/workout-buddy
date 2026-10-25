@@ -3,6 +3,23 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { saveTemplate, getHistory, enrichExercisesWithHistory, saveExerciseNote } from '../services/db';
 
+const DEFAULT_RP_SEGMENTS = [
+  { reps: '6-8', rest: '15-20' },
+  { reps: '3-4', rest: '15-20' },
+  { reps: '2-3', rest: '' }
+];
+
+export const formatRestPauseSegments = (segments) => {
+  if (!Array.isArray(segments) || segments.length === 0) return '';
+  return segments
+    .map((seg, i) =>
+      i < segments.length - 1
+        ? `${seg.reps} reps + ${seg.rest || '15-20'} s repos`
+        : `${seg.reps} reps`
+    )
+    .join(' + ');
+};
+
 export default function CreateWorkoutScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -15,6 +32,8 @@ export default function CreateWorkoutScreen() {
   const [newExType, setNewExType] = useState('reps');
   const [newTimeInput, setNewTimeInput] = useState('5');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
+  const [newRpSetsInput, setNewRpSetsInput] = useState('2');
+  const [rpSegments, setRpSegments] = useState(DEFAULT_RP_SEGMENTS);
   const [newRestInput, setNewRestInput] = useState('60');
   const [newNoteInput, setNewNoteInput] = useState('');
   const [editIndex, setEditIndex] = useState(null);
@@ -53,6 +72,27 @@ export default function CreateWorkoutScreen() {
     return parsed;
   };
 
+  const handleAddRpSegment = () => {
+    const updated = rpSegments.map((seg, idx) =>
+      idx === rpSegments.length - 1 ? { ...seg, rest: seg.rest || '15-20' } : seg
+    );
+    setRpSegments([...updated, { reps: '2-3', rest: '' }]);
+  };
+
+  const handleRemoveRpSegment = (index) => {
+    if (rpSegments.length <= 1) return;
+    const filtered = rpSegments.filter((_, idx) => idx !== index);
+    filtered[filtered.length - 1] = { ...filtered[filtered.length - 1], rest: '' };
+    setRpSegments(filtered);
+  };
+
+  const handleUpdateRpSegment = (index, field, value) => {
+    const updated = rpSegments.map((seg, idx) =>
+      idx === index ? { ...seg, [field]: value } : seg
+    );
+    setRpSegments(updated);
+  };
+
   const handleAddExercise = () => {
     if (!newExerciseName.trim()) {
       Alert.alert('Error', 'Please enter an exercise name');
@@ -83,6 +123,28 @@ export default function CreateWorkoutScreen() {
         type: 'time',
         durationSeconds: Math.floor(durationMins * 60),
         restTime: parseInt(newRestInput) || 60,
+        notes: resolvedNote,
+        ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
+        completed: false
+      };
+    } else if (newExType === 'rest-pause') {
+      const rpSetsCount = parseInt(newRpSetsInput) || 2;
+      const cleanedSegments = rpSegments.map((seg, idx) => ({
+        reps: (seg.reps || '').trim() || '6-8',
+        rest: idx < rpSegments.length - 1 ? ((seg.rest || '').trim() || '15-20') : ''
+      }));
+      newEx = {
+        id: prevEx ? prevEx.id : now.toString(),
+        name: newExerciseName.trim(),
+        type: 'rest-pause',
+        sets: rpSetsCount,
+        restPauseSegments: cleanedSegments,
+        targetReps: Array(rpSetsCount).fill(cleanedSegments[0]?.reps || '8'),
+        restTime: parseInt(newRestInput) || 60,
+        completedSets: 0,
+        prev: prevEx ? prevEx.prev : (enrichedDraft?.prev || 'No previous data'),
+        ...(prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {})),
+        ...(prevEx?.previousLoggedSets !== undefined ? { previousLoggedSets: prevEx.previousLoggedSets } : (enrichedDraft?.previousLoggedSets !== undefined ? { previousLoggedSets: enrichedDraft.previousLoggedSets } : {})),
         notes: resolvedNote,
         ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
         completed: false
@@ -124,6 +186,8 @@ export default function CreateWorkoutScreen() {
     }
     setNewExerciseName('');
     setNewSetsInput('3x10');
+    setNewRpSetsInput('2');
+    setRpSegments(DEFAULT_RP_SEGMENTS);
     setNewTimeInput('5');
     setNewExType('reps');
     setNewRestInput('60');
@@ -139,6 +203,13 @@ export default function CreateWorkoutScreen() {
     
     if (ex.type === 'time') {
       setNewTimeInput(String((ex.durationSeconds || 300) / 60));
+    } else if (ex.type === 'rest-pause') {
+      setNewRpSetsInput(String(ex.sets || 2));
+      setRpSegments(
+        ex.restPauseSegments && ex.restPauseSegments.length > 0
+          ? ex.restPauseSegments
+          : DEFAULT_RP_SEGMENTS
+      );
     } else {
       if (ex.targetReps && ex.targetReps.length > 0) {
         const allSame = ex.targetReps.every(r => r === ex.targetReps[0]);
@@ -226,7 +297,7 @@ export default function CreateWorkoutScreen() {
           style={styles.input} 
           value={newExerciseName} 
           onChangeText={setNewExerciseName} 
-          placeholder="Exercise Name (e.g. Squats)"
+          placeholder="Exercise Name (e.g. Curl marteau)"
         />
 
         <View style={styles.typeToggle}>
@@ -235,6 +306,12 @@ export default function CreateWorkoutScreen() {
             onPress={() => setNewExType('reps')}
           >
             <Text style={[styles.typeBtnTxt, newExType === 'reps' && styles.typeBtnTxtActive]}>Sets & Reps</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeBtn, newExType === 'rest-pause' && styles.typeBtnActive]} 
+            onPress={() => setNewExType('rest-pause')}
+          >
+            <Text style={[styles.typeBtnTxt, newExType === 'rest-pause' && styles.typeBtnTxtActive]}>Rest-Pause</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.typeBtn, newExType === 'time' && styles.typeBtnActive]} 
@@ -254,6 +331,62 @@ export default function CreateWorkoutScreen() {
               placeholder="e.g. 10,10,5 or 3x10"
             />
           </>
+        ) : newExType === 'rest-pause' ? (
+          <View style={styles.rpBuilderBox}>
+            <Text style={styles.label}>Nombre de séries de Rest-Pause</Text>
+            <TextInput
+              style={styles.input}
+              value={newRpSetsInput}
+              onChangeText={setNewRpSetsInput}
+              placeholder="e.g. 2"
+              keyboardType="numeric"
+            />
+
+            <Text style={styles.label}>Séquence Rest-Pause (Répétitions & Repos entre elles)</Text>
+            {rpSegments.map((seg, idx) => (
+              <View key={idx} style={styles.rpSegmentCard}>
+                <View style={styles.rpSegmentRow}>
+                  <Text style={styles.rpSegmentLabel}>Palier {idx + 1} (reps) :</Text>
+                  <TextInput
+                    style={styles.rpSmallInput}
+                    value={seg.reps}
+                    onChangeText={(val) => handleUpdateRpSegment(idx, 'reps', val)}
+                    placeholder="ex: 6-8"
+                  />
+                  {rpSegments.length > 1 && (
+                    <TouchableOpacity
+                      style={styles.rpDeleteSegBtn}
+                      onPress={() => handleRemoveRpSegment(idx)}
+                    >
+                      <Text style={styles.rpDeleteSegTxt}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {idx < rpSegments.length - 1 && (
+                  <View style={[styles.rpSegmentRow, { marginTop: 8 }]}>
+                    <Text style={styles.rpRestLabel}>+ Repos avant palier {idx + 2} (s) :</Text>
+                    <TextInput
+                      style={styles.rpSmallInput}
+                      value={seg.rest}
+                      onChangeText={(val) => handleUpdateRpSegment(idx, 'rest', val)}
+                      placeholder="ex: 15-20"
+                    />
+                  </View>
+                )}
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addRpSegBtn} onPress={handleAddRpSegment}>
+              <Text style={styles.addRpSegBtnTxt}>+ AJOUTER REPOS + REPS</Text>
+            </TouchableOpacity>
+
+            <View style={styles.rpPreviewBox}>
+              <Text style={styles.rpPreviewTxt}>
+                {newRpSetsInput || '2'} séries de rest-pause = {newExerciseName || 'Exercice'} : {formatRestPauseSegments(rpSegments)}
+              </Text>
+            </View>
+          </View>
         ) : (
           <>
             <Text style={styles.label}>Duration (minutes)</Text>
@@ -267,7 +400,7 @@ export default function CreateWorkoutScreen() {
           </>
         )}
         
-        <Text style={styles.label}>Rest Time (seconds)</Text>
+        <Text style={styles.label}>Rest Time between sets (seconds)</Text>
         <TextInput 
           style={styles.input} 
           value={newRestInput} 
@@ -299,6 +432,10 @@ export default function CreateWorkoutScreen() {
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
               {ex.type === 'time' ? (
                 <Text style={styles.exDetails}>⏱ {Math.floor((ex.durationSeconds || 0)/60)}m {(ex.durationSeconds || 0)%60}s • {ex.restTime || 60}s Rest</Text>
+              ) : ex.type === 'rest-pause' ? (
+                <Text style={styles.exDetails}>
+                  🔥 {ex.sets} séries de rest-pause : {formatRestPauseSegments(ex.restPauseSegments)} • {ex.restTime || 60}s Rest
+                </Text>
               ) : (
                 <Text style={styles.exDetails}>{ex.targetReps ? ex.targetReps.join(', ') : ''} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
               )}
@@ -345,11 +482,23 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: '#ddd', fontSize: 16 },
   addSection: { backgroundColor: '#e6f7f6', padding: 16, borderRadius: 14, marginBottom: 20 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 12 },
-  typeToggle: { flexDirection: 'row', marginBottom: 14, gap: 10 },
-  typeBtn: { flex: 1, padding: 12, backgroundColor: '#fff', borderRadius: 10, alignItems: 'center', borderWidth: 2, borderColor: '#ddd' },
+  typeToggle: { flexDirection: 'row', marginBottom: 14, gap: 8 },
+  typeBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 6, backgroundColor: '#fff', borderRadius: 10, alignItems: 'center', borderWidth: 2, borderColor: '#ddd' },
   typeBtnActive: { borderColor: '#0bc0af', backgroundColor: '#e6f7f6' },
-  typeBtnTxt: { fontSize: 14, fontWeight: 'bold', color: '#666' },
+  typeBtnTxt: { fontSize: 13, fontWeight: 'bold', color: '#666', textAlign: 'center' },
   typeBtnTxtActive: { color: '#0bc0af' },
+  rpBuilderBox: { marginBottom: 10 },
+  rpSegmentCard: { backgroundColor: '#fff', padding: 10, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#ccebe8' },
+  rpSegmentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rpSegmentLabel: { fontSize: 14, fontWeight: 'bold', color: '#1b2a47', flex: 1 },
+  rpRestLabel: { fontSize: 13, fontWeight: 'bold', color: '#ff9800', flex: 1 },
+  rpSmallInput: { backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, fontSize: 15, fontWeight: 'bold', minWidth: 80, textAlign: 'center' },
+  rpDeleteSegBtn: { marginLeft: 8, backgroundColor: '#ffe6e6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  rpDeleteSegTxt: { color: '#ff4d4d', fontWeight: 'bold', fontSize: 14 },
+  addRpSegBtn: { backgroundColor: '#0bc0af', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 4, marginBottom: 10 },
+  addRpSegBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  rpPreviewBox: { backgroundColor: '#fff8e1', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ffe082', marginBottom: 10 },
+  rpPreviewTxt: { fontSize: 13, color: '#5d4037', fontWeight: 'bold' },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { width: '48%' },
   addBtn: { backgroundColor: '#1b2a47', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 6 },
