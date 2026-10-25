@@ -5,7 +5,7 @@ import GlobalTimer from '../components/GlobalTimer';
 import ExerciseItem from '../components/ExerciseItem';
 import RestTimer from '../components/RestTimer';
 import TimedExerciseItem from '../components/TimedExerciseItem';
-import { getHistory, enrichExercisesWithHistory, saveLocalWeights } from '../services/db';
+import { getHistory, enrichExercisesWithHistory, saveLocalWeights, saveExerciseNote } from '../services/db';
 
 export default function ActiveWorkoutScreen() {
   const navigation = useNavigation();
@@ -14,8 +14,9 @@ export default function ActiveWorkoutScreen() {
   
   const [timerActive, setTimerActive] = useState(true);
   const draftsRef = useRef({});
+  const noteTimeoutRef = useRef(null);
   
-  // Use exercises from route params, enriched with any cached previous weights
+  // Use exercises from route params, enriched with any cached previous weights and notes
   const [exercises, setExercises] = useState(() => {
     const raw = route.params?.exercises || [];
     const enriched = enrichExercisesWithHistory(raw, [], workoutName);
@@ -36,20 +37,47 @@ export default function ActiveWorkoutScreen() {
       if (!mounted || !history || history.length === 0) return;
       setExercises(prev => {
         const enriched = enrichExercisesWithHistory(prev, history, workoutName);
-        return prev.map((ex, idx) => ({
-          ...ex,
-          lastWeight: enriched[idx]?.lastWeight ?? ex.lastWeight,
-          previousLoggedSets: enriched[idx]?.previousLoggedSets ?? ex.previousLoggedSets,
-          prev: enriched[idx]?.prev ?? ex.prev
-        }));
+        return prev.map((ex, idx) => {
+          const enr = enriched[idx] || {};
+          const shouldTakeEnrichedNote =
+            (enr.noteUpdatedAt || 0) >= (ex.noteUpdatedAt || 0) &&
+            (!ex.notes || enr.notes);
+          return {
+            ...ex,
+            lastWeight: enr.lastWeight ?? ex.lastWeight,
+            previousLoggedSets: enr.previousLoggedSets ?? ex.previousLoggedSets,
+            prev: enr.prev ?? ex.prev,
+            notes: shouldTakeEnrichedNote ? (enr.notes ?? ex.notes ?? '') : (ex.notes ?? ''),
+            ...(shouldTakeEnrichedNote && enr.noteUpdatedAt ? { noteUpdatedAt: enr.noteUpdatedAt } : {})
+          };
+        });
       });
     });
     return () => {
       mounted = false;
+      if (noteTimeoutRef.current) clearTimeout(noteTimeoutRef.current);
     };
   }, [workoutName]);
 
   const activeExercise = exercises[activeExIndex];
+
+  const handleNoteChange = (text) => {
+    const now = Date.now();
+    const currentEx = exercises[activeExIndex];
+    const updatedEx = {
+      ...currentEx,
+      notes: text,
+      noteUpdatedAt: now
+    };
+    const updated = exercises.map((ex, idx) => (idx === activeExIndex ? updatedEx : ex));
+    setExercises(updated);
+    saveLocalWeights([updatedEx]);
+
+    if (noteTimeoutRef.current) clearTimeout(noteTimeoutRef.current);
+    noteTimeoutRef.current = setTimeout(() => {
+      saveExerciseNote(updatedEx, text);
+    }, 400);
+  };
 
   const getInitialWeight = (ex) => {
     if (!ex) return '0';
@@ -244,15 +272,12 @@ export default function ActiveWorkoutScreen() {
           )}
 
           <View style={styles.notesContainer}>
+            <Text style={styles.notesLabel}>📝 Note ({activeExercise.name}) :</Text>
             <TextInput
               style={styles.notesInput}
-              placeholder="Notes / Ajustements pour cet exercice..."
+              placeholder="Écrire ou modifier une note pour cet exercice..."
               value={activeExercise.notes || ''}
-              onChangeText={(text) => {
-                const updated = [...exercises];
-                updated[activeExIndex].notes = text;
-                setExercises(updated);
-              }}
+              onChangeText={handleNoteChange}
               multiline
             />
           </View>
@@ -286,6 +311,7 @@ const styles = StyleSheet.create({
   backBtnTxt: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
   chronoBtn: { backgroundColor: '#2196F3', padding: 12, borderRadius: 12, marginLeft: 8, elevation: 2 },
   chronoBtnTxt: { fontSize: 22 },
-  notesContainer: { marginTop: 10, backgroundColor: '#fff', padding: 12, borderRadius: 12 },
+  notesContainer: { marginTop: 10, backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#0bc0af' },
+  notesLabel: { fontSize: 14, fontWeight: 'bold', color: '#0bc0af', marginBottom: 6 },
   notesInput: { fontSize: 15, color: '#333', minHeight: 60, textAlignVertical: 'top' }
 });

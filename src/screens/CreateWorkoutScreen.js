@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { saveTemplate } from '../services/db';
+import { saveTemplate, getHistory, enrichExercisesWithHistory, saveExerciseNote } from '../services/db';
 
 export default function CreateWorkoutScreen() {
   const navigation = useNavigation();
@@ -16,6 +16,7 @@ export default function CreateWorkoutScreen() {
   const [newTimeInput, setNewTimeInput] = useState('5');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
   const [newRestInput, setNewRestInput] = useState('60');
+  const [newNoteInput, setNewNoteInput] = useState('');
   const [editIndex, setEditIndex] = useState(null);
 
   useEffect(() => {
@@ -23,7 +24,13 @@ export default function CreateWorkoutScreen() {
       const w = route.params.editWorkout;
       setWorkoutId(w.id);
       setWorkoutName(w.name);
-      setExercises(w.exercises || []);
+      const initialExs = enrichExercisesWithHistory(w.exercises || [], [], w.name);
+      setExercises(initialExs);
+      getHistory().then(history => {
+        if (history && history.length > 0) {
+          setExercises(prev => enrichExercisesWithHistory(prev, history, w.name));
+        }
+      });
     }
   }, [route.params?.editWorkout]);
 
@@ -53,6 +60,16 @@ export default function CreateWorkoutScreen() {
     }
     
     let newEx;
+    const prevEx = editIndex !== null ? exercises[editIndex] : null;
+    const enrichedDraft = enrichExercisesWithHistory(
+      [{ id: prevEx ? prevEx.id : undefined, name: newExerciseName.trim(), type: newExType }],
+      [],
+      workoutName
+    )[0];
+    const resolvedNote = newNoteInput.trim() !== ''
+      ? newNoteInput
+      : (prevEx?.notes || enrichedDraft?.notes || '');
+    const now = Date.now();
     
     if (newExType === 'time') {
       const durationMins = parseFloat(newTimeInput);
@@ -61,11 +78,13 @@ export default function CreateWorkoutScreen() {
         return;
       }
       newEx = {
-        id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
+        id: prevEx ? prevEx.id : now.toString(),
         name: newExerciseName.trim(),
         type: 'time',
         durationSeconds: Math.floor(durationMins * 60),
         restTime: parseInt(newRestInput) || 60,
+        notes: resolvedNote,
+        ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
         completed: false
       };
     } else {
@@ -75,18 +94,24 @@ export default function CreateWorkoutScreen() {
         return;
       }
       newEx = {
-        id: editIndex !== null ? exercises[editIndex].id : Date.now().toString(),
+        id: prevEx ? prevEx.id : now.toString(),
         name: newExerciseName.trim(),
         type: 'reps',
         sets: parsedTargetSets.length,
         targetReps: parsedTargetSets,
         restTime: parseInt(newRestInput) || 60,
         completedSets: 0,
-        prev: editIndex !== null ? exercises[editIndex].prev : 'No previous data',
-        ...(editIndex !== null && exercises[editIndex].lastWeight !== undefined ? { lastWeight: exercises[editIndex].lastWeight } : {}),
-        ...(editIndex !== null && exercises[editIndex].previousLoggedSets !== undefined ? { previousLoggedSets: exercises[editIndex].previousLoggedSets } : {}),
+        prev: prevEx ? prevEx.prev : (enrichedDraft?.prev || 'No previous data'),
+        ...(prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {})),
+        ...(prevEx?.previousLoggedSets !== undefined ? { previousLoggedSets: prevEx.previousLoggedSets } : (enrichedDraft?.previousLoggedSets !== undefined ? { previousLoggedSets: enrichedDraft.previousLoggedSets } : {})),
+        notes: resolvedNote,
+        ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
         completed: false
       };
+    }
+
+    if (newNoteInput.trim() !== '') {
+      saveExerciseNote(newEx, newNoteInput);
     }
 
     if (editIndex !== null) {
@@ -102,6 +127,7 @@ export default function CreateWorkoutScreen() {
     setNewTimeInput('5');
     setNewExType('reps');
     setNewRestInput('60');
+    setNewNoteInput('');
   };
 
   const handleEditExercise = (index) => {
@@ -109,6 +135,7 @@ export default function CreateWorkoutScreen() {
     setNewExerciseName(ex.name);
     setNewRestInput(String(ex.restTime || 60));
     setNewExType(ex.type || 'reps');
+    setNewNoteInput(ex.notes || '');
     
     if (ex.type === 'time') {
       setNewTimeInput(String((ex.durationSeconds || 300) / 60));
@@ -127,6 +154,17 @@ export default function CreateWorkoutScreen() {
 
   const handleRemoveExercise = (id) => {
     setExercises(exercises.filter(ex => ex.id !== id));
+  };
+
+  const handleInlineNoteChange = (index, text) => {
+    const now = Date.now();
+    const updated = exercises.map((ex, idx) => {
+      if (idx !== index) return ex;
+      const updatedEx = { ...ex, notes: text, noteUpdatedAt: now };
+      saveExerciseNote(updatedEx, text);
+      return updatedEx;
+    });
+    setExercises(updated);
   };
 
   const handleSave = async () => {
@@ -162,8 +200,6 @@ export default function CreateWorkoutScreen() {
   };
 
   const handleStart = async () => {
-    // Optionally save before starting, but since the user can save explicitly, we'll just navigate
-    // Actually, we probably still want to save when they start so they don't lose it if they didn't click save.
     const saved = await handleSave();
     if (saved) {
       navigation.navigate('ActiveWorkout', { workoutName, exercises });
@@ -239,6 +275,16 @@ export default function CreateWorkoutScreen() {
           placeholder="e.g. 60"
           keyboardType="numeric"
         />
+
+        <Text style={styles.label}>Note (optionnel)</Text>
+        <TextInput 
+          style={styles.input} 
+          value={newNoteInput} 
+          onChangeText={setNewNoteInput} 
+          placeholder="Note pour cet exercice..."
+          multiline
+        />
+
         <TouchableOpacity style={styles.addBtn} onPress={handleAddExercise}>
           <Text style={styles.addBtnTxt}>{editIndex !== null ? "UPDATE EXERCISE" : "+ ADD EXERCISE"}</Text>
         </TouchableOpacity>
@@ -256,6 +302,13 @@ export default function CreateWorkoutScreen() {
               ) : (
                 <Text style={styles.exDetails}>{ex.targetReps ? ex.targetReps.join(', ') : ''} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
               )}
+              <TextInput
+                style={styles.inlineNoteInput}
+                placeholder="📝 Ajouter ou modifier une note pour cet exercice..."
+                value={ex.notes || ''}
+                onChangeText={(text) => handleInlineNoteChange(index, text)}
+                multiline
+              />
             </View>
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity style={styles.editBtn} onPress={() => handleEditExercise(index)}>
@@ -305,7 +358,8 @@ const styles = StyleSheet.create({
   emptyText: { fontStyle: 'italic', color: '#888', fontSize: 15 },
   exCard: { flexDirection: 'column', backgroundColor: '#fff', padding: 14, borderRadius: 12, marginBottom: 10, elevation: 1 },
   exName: { fontSize: 17, fontWeight: 'bold', marginBottom: 6 },
-  exDetails: { fontSize: 14, color: '#666', marginBottom: 10 },
+  exDetails: { fontSize: 14, color: '#666', marginBottom: 8 },
+  inlineNoteInput: { backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 8, fontSize: 14, color: '#333', marginBottom: 10 },
   removeBtn: { padding: 10, backgroundColor: '#ffe6e6', borderRadius: 10, flex: 1, alignItems: 'center', marginLeft: 10 },
   removeBtnTxt: { fontSize: 16, color: '#ff4d4d', fontWeight: 'bold' },
   editBtn: { padding: 10, backgroundColor: '#e6f7f6', borderRadius: 10, flex: 1, alignItems: 'center' },

@@ -147,7 +147,7 @@ export default function HistoryDetailsScreen() {
                 multiline
                 onChangeText={(val) => {
                   const newExercises = [...editedItem.exercises];
-                  newExercises[idx].notes = val;
+                  newExercises[idx] = { ...newExercises[idx], notes: val, noteUpdatedAt: Date.now() };
                   setEditedItem({...editedItem, exercises: newExercises});
                 }}
               />

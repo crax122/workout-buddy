@@ -10,30 +10,6 @@ export const formatPrevSets = (loggedSets) => {
   return loggedSets.map(s => `${s.weight} kg x ${s.reps}`).join(', ');
 };
 
-export const saveLocalWeights = (exercises) => {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    const raw = window.localStorage.getItem(LOCAL_WEIGHTS_KEY);
-    const map = raw ? JSON.parse(raw) : {};
-    (exercises || []).forEach(ex => {
-      if (ex && ex.loggedSets && ex.loggedSets.length > 0) {
-        const lastWeight = String(ex.loggedSets[0].weight ?? '0');
-        const prev = formatPrevSets(ex.loggedSets);
-        const entry = {
-          lastWeight,
-          previousLoggedSets: ex.loggedSets,
-          prev
-        };
-        if (ex.id) map[`id:${ex.id}`] = entry;
-        if (ex.name) map[`name:${ex.name.trim().toLowerCase()}`] = entry;
-      }
-    });
-    window.localStorage.setItem(LOCAL_WEIGHTS_KEY, JSON.stringify(map));
-  } catch (e) {
-    // Ignore localStorage errors
-  }
-};
-
 export const getLocalWeightsMap = () => {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return {};
@@ -44,22 +20,155 @@ export const getLocalWeightsMap = () => {
   }
 };
 
-export const enrichExercisesWithHistory = (exercises, history = [], workoutName = null) => {
-  const localMap = getLocalWeightsMap();
+export const saveLocalWeights = (exercises) => {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const map = getLocalWeightsMap();
+    (exercises || []).forEach(ex => {
+      if (!ex) return;
+      const normName = (ex.name || '').trim().toLowerCase();
+      const idKey = ex.id ? `id:${ex.id}` : null;
+      const nameKey = normName ? `name:${normName}` : null;
 
-  // Also populate localMap from history (oldest to newest so newest wins)
+      const existing = (idKey && map[idKey]) || (nameKey && map[nameKey]) || {};
+      const updated = { ...existing };
+
+      if (ex.loggedSets && ex.loggedSets.length > 0) {
+        updated.lastWeight = String(ex.loggedSets[0].weight ?? '0');
+        updated.previousLoggedSets = ex.loggedSets;
+        updated.prev = formatPrevSets(ex.loggedSets);
+      }
+
+      if (typeof ex.notes === 'string') {
+        const exNoteTime = ex.noteUpdatedAt || 0;
+        const existingNoteTime = existing.noteUpdatedAt || 0;
+        if (ex.notes !== '' || exNoteTime >= existingNoteTime) {
+          if (exNoteTime >= existingNoteTime || !existing.notes) {
+            updated.notes = ex.notes;
+            updated.noteUpdatedAt = exNoteTime || Date.now();
+          }
+        }
+      }
+
+      if (Object.keys(updated).length > 0) {
+        if (idKey) map[idKey] = updated;
+        if (nameKey) map[nameKey] = updated;
+      }
+    });
+    window.localStorage.setItem(LOCAL_WEIGHTS_KEY, JSON.stringify(map));
+  } catch (e) {
+    // Ignore localStorage errors
+  }
+};
+
+export const saveExerciseNote = async (exercise, noteText) => {
+  if (!exercise) return;
+  const now = Date.now();
+  const exWithNote = {
+    ...exercise,
+    notes: noteText,
+    noteUpdatedAt: now
+  };
+  saveLocalWeights([exWithNote]);
+
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+    const ref = doc(db, 'users', user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() || {};
+    const normName = (exercise.name || '').trim().toLowerCase();
+    let changed = false;
+
+    const templates = (data.templates || []).map(t => ({
+      ...t,
+      exercises: (t.exercises || []).map(ex => {
+        const matchId = exercise.id && ex.id === exercise.id;
+        const matchName = normName && (ex.name || '').trim().toLowerCase() === normName;
+        if (matchId || matchName) {
+          changed = true;
+          return {
+            ...ex,
+            notes: noteText,
+            noteUpdatedAt: now
+          };
+        }
+        return ex;
+      })
+    }));
+
+    if (changed) {
+      await updateDoc(ref, { templates: cleanData(templates) });
+    }
+  } catch (e) {
+    console.error("Error saving exercise note:", e);
+  }
+};
+
+export const enrichExercisesWithHistory = (exercises, history = [], workoutName = null) => {
+  // Populate local cache from history (oldest to newest so newest wins)
   (history || []).forEach(h => {
     if (h && Array.isArray(h.exercises)) {
       saveLocalWeights(h.exercises);
     }
   });
 
-  const updatedLocalMap = getLocalWeightsMap();
+  const localMap = getLocalWeightsMap();
 
   return (exercises || []).map(ex => {
-    if (!ex || ex.type === 'time') return ex;
+    if (!ex) return ex;
 
     const normName = (ex.name || '').trim().toLowerCase();
+    const localEntry =
+      (ex.id && localMap[`id:${ex.id}`]) ||
+      (normName && localMap[`name:${normName}`]) ||
+      null;
+
+    // Find latest note for this exercise (works for both 'reps' and 'time' exercises)
+    let resolvedNote = typeof ex.notes === 'string' ? ex.notes : '';
+    let resolvedNoteTime = ex.noteUpdatedAt || 0;
+
+    if (Array.isArray(history)) {
+      for (let i = history.length - 1; i >= 0; i--) {
+        const h = history[i];
+        if (h && Array.isArray(h.exercises)) {
+          const foundNoteEx = h.exercises.find(
+            hEx =>
+              hEx &&
+              typeof hEx.notes === 'string' &&
+              (hEx.notes.trim() !== '' || hEx.noteUpdatedAt) &&
+              ((ex.id && hEx.id === ex.id) ||
+                (normName && (hEx.name || '').trim().toLowerCase() === normName))
+          );
+          if (foundNoteEx) {
+            const hNoteTime = foundNoteEx.noteUpdatedAt || 1;
+            if (hNoteTime >= resolvedNoteTime || !resolvedNote) {
+              resolvedNote = foundNoteEx.notes;
+              resolvedNoteTime = hNoteTime;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    if (localEntry && typeof localEntry.notes === 'string') {
+      const localNoteTime = localEntry.noteUpdatedAt || 0;
+      if (localNoteTime >= resolvedNoteTime || (!resolvedNote && localEntry.notes)) {
+        resolvedNote = localEntry.notes;
+        resolvedNoteTime = localNoteTime;
+      }
+    }
+
+    if (ex.type === 'time') {
+      return {
+        ...ex,
+        notes: resolvedNote,
+        ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
+      };
+    }
+
     let matchedSets = null;
 
     // 1. Search history from newest to oldest within the same workout name first
@@ -109,25 +218,29 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
         ...ex,
         lastWeight: String(matchedSets[0].weight ?? '0'),
         previousLoggedSets: matchedSets,
-        prev: formatPrevSets(matchedSets)
+        prev: formatPrevSets(matchedSets),
+        notes: resolvedNote,
+        ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
       };
     }
 
     // 3. Fallback to template's own stored previousLoggedSets / lastWeight or localMap
-    const localEntry =
-      (ex.id && (updatedLocalMap[`id:${ex.id}`] || localMap[`id:${ex.id}`])) ||
-      (normName && (updatedLocalMap[`name:${normName}`] || localMap[`name:${normName}`]));
-
-    if (localEntry && (!ex.previousLoggedSets || ex.previousLoggedSets.length === 0)) {
+    if (localEntry && localEntry.previousLoggedSets && (!ex.previousLoggedSets || ex.previousLoggedSets.length === 0)) {
       return {
         ...ex,
         lastWeight: localEntry.lastWeight,
         previousLoggedSets: localEntry.previousLoggedSets,
-        prev: localEntry.prev
+        prev: localEntry.prev,
+        notes: resolvedNote,
+        ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
       };
     }
 
-    return ex;
+    return {
+      ...ex,
+      notes: resolvedNote,
+      ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
+    };
   });
 };
 
@@ -176,6 +289,9 @@ export const getTemplates = async () => {
 
 export const saveTemplate = async (newTemplate, workoutId = null) => {
   try {
+    if (newTemplate && Array.isArray(newTemplate.exercises)) {
+      saveLocalWeights(newTemplate.exercises);
+    }
     const ref = await ensureUserDoc();
     const snap = await getDoc(ref);
     const data = snap.data() || {};
