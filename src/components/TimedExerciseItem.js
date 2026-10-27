@@ -76,7 +76,26 @@ export default function TimedExerciseItem({ exercise, onComplete, onAdjustTime }
       <View style={styles.header}>
         <Text style={styles.label}>TIMED EXERCISE: </Text>
         <Text style={styles.title}>{exercise.name}</Text>
+        {exercise.protocol ? (
+          <Text style={styles.protocolTxt}>{exercise.protocol}</Text>
+        ) : null}
       </View>
+
+      {exercise.cardioInfo && (
+        <View style={styles.cardioZonesBox}>
+          <Text style={styles.cardioZonesTitle}>
+            ❤️ Zones Karvonen (Âge: {exercise.cardioInfo.age} • Repos: {exercise.cardioInfo.restingHR} BPM • Max: {exercise.cardioInfo.maxHR} BPM)
+          </Text>
+          <View style={styles.zonesGrid}>
+            {(exercise.cardioInfo.zones || []).map((z) => (
+              <View key={z.percent} style={styles.zonePill}>
+                <Text style={styles.zonePercentTxt}>{z.percent}%</Text>
+                <Text style={styles.zoneBpmTxt}>{z.bpm} BPM</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
       
       <Text style={styles.time}>{formatTime(seconds)}</Text>
 
@@ -141,6 +160,13 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 10 },
   label: { fontSize: 13, color: '#666', fontWeight: 'bold', marginBottom: 4 },
   title: { fontSize: 22, fontWeight: 'bold', color: '#ff9800', textAlign: 'center' },
+  protocolTxt: { fontSize: 14, color: '#444', fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
+  cardioZonesBox: { backgroundColor: '#fff', width: '100%', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#f8bbd0', marginBottom: 6, alignItems: 'center' },
+  cardioZonesTitle: { fontSize: 13, fontWeight: 'bold', color: '#1b2a47', marginBottom: 8, textAlign: 'center' },
+  zonesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  zonePill: { backgroundColor: '#fce4ec', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, alignItems: 'center', minWidth: 74 },
+  zonePercentTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
+  zoneBpmTxt: { fontSize: 14, fontWeight: 'bold', color: '#e91e63' },
   time: { fontSize: 56, fontWeight: 'bold', color: '#333', marginVertical: 10 },
   adjustSection: { width: '100%', marginVertical: 10, alignItems: 'center' },
   adjustLabel: { fontSize: 13, fontWeight: 'bold', color: '#666', marginBottom: 8 },

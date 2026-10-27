@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { width: '48%' },
   label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 6 },
-  input: { backgroundColor: '#f9f9f9', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', fontSize: 18, textAlign: 'center' },
+  input: { backgroundColor: '#f9f9f9', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', fontSize: 18, fontWeight: 'bold', color: '#111111', textAlign: 'center' },
   resultCard: { backgroundColor: '#1b2a47', padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 18 },
   estimatedText: { color: '#ccc', fontSize: 15, marginBottom: 4 },
   oneRMText: { color: '#0bc0af', fontSize: 42, fontWeight: 'bold' },
