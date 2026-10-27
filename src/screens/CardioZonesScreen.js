@@ -5,8 +5,8 @@ import { cardioSessions, fatigueSessions } from '../data/cardioSessions';
 
 export default function CardioZonesScreen() {
   const navigation = useNavigation();
-  const [age, setAge] = useState('30');
-  const [restingHR, setRestingHR] = useState('60');
+  const [age, setAge] = useState('44');
+  const [restingHR, setRestingHR] = useState('70');
   const [selectedCardio, setSelectedCardio] = useState(null);
 
   const calcMaxHR = () => 220 - (parseInt(age) || 0);
