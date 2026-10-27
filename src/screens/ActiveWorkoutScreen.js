@@ -130,14 +130,71 @@ export default function ActiveWorkoutScreen() {
     }
   };
 
+  const getExerciseSetTypes = (ex) => {
+    const count = ex.sets || 1;
+    if (Array.isArray(ex.setTypes) && ex.setTypes.length === count) {
+      return [...ex.setTypes];
+    }
+    if (ex.type === 'rest-pause') {
+      return Array(count).fill('rest-pause');
+    }
+    const rpCount = ex.restPauseSets || 0;
+    const normalCount = Math.max(0, count - rpCount);
+    return [
+      ...Array(normalCount).fill('reps'),
+      ...Array(rpCount).fill('rest-pause')
+    ];
+  };
+
   const handleAddSet = () => {
     const updated = exercises.map((ex, idx) => {
       if (idx !== activeExIndex) return ex;
-      const targetReps = ex.targetReps ? [...ex.targetReps, ex.targetReps[ex.targetReps.length - 1] || 10] : [10];
+      const baseSetTypes = getExerciseSetTypes(ex);
+      const addedType = ex.type === 'rest-pause' ? 'rest-pause' : 'reps';
+      const setTypes = [...baseSetTypes, addedType];
+      const lastNormalRep =
+        Array.isArray(ex.normalTargetReps) && ex.normalTargetReps.length > 0
+          ? ex.normalTargetReps[ex.normalTargetReps.length - 1]
+          : ex.targetReps && ex.targetReps.length > 0
+            ? ex.targetReps[0]
+            : 10;
+      const targetReps = ex.targetReps ? [...ex.targetReps, lastNormalRep] : [10];
       const newSets = ex.sets + 1;
       return {
         ...ex,
         sets: newSets,
+        setTypes,
+        targetReps,
+        completed: ex.completedSets >= newSets
+      };
+    });
+    setExercises(updated);
+  };
+
+  const handleAddRestPauseSet = () => {
+    const updated = exercises.map((ex, idx) => {
+      if (idx !== activeExIndex) return ex;
+      const baseSetTypes = getExerciseSetTypes(ex);
+      const setTypes = [...baseSetTypes, 'rest-pause'];
+      const defaultSegments = [
+        { reps: '6-8', rest: '15-20' },
+        { reps: '3-4', rest: '15-20' },
+        { reps: '2-3', rest: '' }
+      ];
+      const restPauseSegments =
+        Array.isArray(ex.restPauseSegments) && ex.restPauseSegments.length > 0
+          ? ex.restPauseSegments
+          : defaultSegments;
+      const targetReps = ex.targetReps
+        ? [...ex.targetReps, restPauseSegments[0]?.reps || '6-8']
+        : [restPauseSegments[0]?.reps || '6-8'];
+      const newSets = ex.sets + 1;
+      return {
+        ...ex,
+        sets: newSets,
+        setTypes,
+        restPauseSets: (ex.restPauseSets || 0) + 1,
+        restPauseSegments,
         targetReps,
         completed: ex.completedSets >= newSets
       };
@@ -269,6 +326,7 @@ export default function ActiveWorkoutScreen() {
               initialReps={String(activeExercise.targetReps && activeExercise.targetReps.length > 0 ? (activeExercise.targetReps[activeExercise.completedSets] || 10) : 10)}
               onLogSet={handleLogSet}
               onAddSet={handleAddSet}
+              onAddRestPauseSet={handleAddRestPauseSet}
               onDraftChange={(exId, draft) => {
                 draftsRef.current[exId] = draft;
               }}

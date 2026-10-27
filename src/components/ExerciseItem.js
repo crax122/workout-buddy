@@ -11,27 +11,57 @@ const extractNumeric = (val, fallback = '8') => {
   return fallback;
 };
 
+const isSetRestPause = (exercise, currentSet) => {
+  if (!exercise) return false;
+  if (exercise.type === 'rest-pause') return true;
+  const setIdx = Math.max(0, (currentSet || 1) - 1);
+  if (Array.isArray(exercise.setTypes) && exercise.setTypes.length > setIdx) {
+    return exercise.setTypes[setIdx] === 'rest-pause';
+  }
+  if (exercise.restPauseSets && exercise.restPauseSets > 0) {
+    const normalCount = Math.max(0, (exercise.sets || 0) - exercise.restPauseSets);
+    return setIdx >= normalCount;
+  }
+  if (
+    !Array.isArray(exercise.setTypes) &&
+    Array.isArray(exercise.previousLoggedSets) &&
+    exercise.previousLoggedSets[setIdx]?.isRestPause
+  ) {
+    return true;
+  }
+  return false;
+};
+
 const buildInitialSegments = (exercise, currentSet, initialReps) => {
   const setIdx = Math.max(0, (currentSet || 1) - 1);
 
-  // 1. If previous set in current session had segments, use those
+  // 1. If a previous set in the current session was Rest-Pause and had segments, use those
   if (exercise.loggedSets && exercise.loggedSets.length > 0) {
-    const lastLogged = exercise.loggedSets[exercise.loggedSets.length - 1];
-    if (lastLogged && Array.isArray(lastLogged.segments) && lastLogged.segments.length > 0) {
-      return lastLogged.segments.map(s => ({ ...s }));
+    for (let i = exercise.loggedSets.length - 1; i >= 0; i--) {
+      const logged = exercise.loggedSets[i];
+      if (logged && logged.isRestPause && Array.isArray(logged.segments) && logged.segments.length > 0) {
+        return logged.segments.map(s => ({ ...s }));
+      }
     }
   }
 
-  // 2. If previous session had segments for this set index (or first set)
+  // 2. If previous session had segments for this set index (or any Rest-Pause set in previous session)
   if (Array.isArray(exercise.previousLoggedSets) && exercise.previousLoggedSets.length > 0) {
-    const prevSet = exercise.previousLoggedSets[setIdx] || exercise.previousLoggedSets[0];
+    const exactPrev = exercise.previousLoggedSets[setIdx];
+    const fallbackPrev = exercise.previousLoggedSets.find(
+      s => s && s.isRestPause && Array.isArray(s.segments) && s.segments.length > 0
+    );
+    const prevSet =
+      exactPrev && Array.isArray(exactPrev.segments) && exactPrev.segments.length > 0
+        ? exactPrev
+        : fallbackPrev;
     if (prevSet && Array.isArray(prevSet.segments) && prevSet.segments.length > 0) {
       return prevSet.segments.map((s, idx) => {
         const cfg = Array.isArray(exercise.restPauseSegments) ? exercise.restPauseSegments[idx] : null;
         return {
           reps: String(s.reps || extractNumeric(cfg?.reps, '6')),
           targetReps: cfg?.reps || s.targetReps || '',
-          rest: String(s.rest || extractNumeric(cfg?.rest, '15')),
+          rest: idx < prevSet.segments.length - 1 ? String(s.rest || extractNumeric(cfg?.rest, '15')) : '',
           targetRest: cfg?.rest || s.targetRest || ''
         };
       });
@@ -48,8 +78,8 @@ const buildInitialSegments = (exercise, currentSet, initialReps) => {
     }));
   }
 
-  // 4. Default single segment (standard reps exercise)
-  if (exercise.type === 'rest-pause') {
+  // 4. Default Rest-Pause segments if this set is Rest-Pause
+  if (isSetRestPause(exercise, currentSet)) {
     return [
       { reps: '8', targetReps: '6-8', rest: '20', targetRest: '15-20' },
       { reps: '4', targetReps: '3-4', rest: '20', targetRest: '15-20' },
@@ -71,14 +101,13 @@ export default function ExerciseItem({
   initialReps = '10',
   onLogSet,
   onAddSet,
+  onAddRestPauseSet,
   onDraftChange
 }) {
   const [weight, setWeight] = useState(String(initialWeight));
   const [reps, setReps] = useState(String(extractNumeric(initialReps, '10')));
   const [segments, setSegments] = useState(() => buildInitialSegments(exercise, currentSet, initialReps));
-  const [isRestPause, setIsRestPause] = useState(
-    () => exercise.type === 'rest-pause' || buildInitialSegments(exercise, currentSet, initialReps).length > 1
-  );
+  const [isRestPause, setIsRestPause] = useState(() => isSetRestPause(exercise, currentSet));
 
   // Micro-rest countdown state for Rest-Pause
   const [activeTimerIdx, setActiveTimerIdx] = useState(null);
@@ -90,10 +119,10 @@ export default function ExerciseItem({
     setReps(String(extractNumeric(initialReps, '10')));
     const initSegs = buildInitialSegments(exercise, currentSet, initialReps);
     setSegments(initSegs);
-    setIsRestPause(exercise.type === 'rest-pause' || initSegs.length > 1);
+    setIsRestPause(isSetRestPause(exercise, currentSet));
     setActiveTimerIdx(null);
     setMicroSeconds(0);
-  }, [exercise.id, currentSet, initialWeight, initialReps]);
+  }, [exercise.id, currentSet, initialWeight, initialReps, exercise.sets, exercise.restPauseSets]);
 
   useEffect(() => {
     let interval = null;
@@ -227,14 +256,50 @@ export default function ExerciseItem({
           {isRestPause ? 'SÉRIE REST-PAUSE :' : 'CURRENT EXERCISE :'}
         </Text>
         <Text style={styles.title}>{exercise.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
           <Text style={styles.setInfo}>SET {currentSet} / {totalSets}</Text>
           {onAddSet && (
             <TouchableOpacity style={styles.addSetBtn} onPress={onAddSet}>
               <Text style={styles.addSetBtnTxt}>+ 1 SET</Text>
             </TouchableOpacity>
           )}
+          {onAddRestPauseSet && (
+            <TouchableOpacity style={styles.addRpSetBtn} onPress={onAddRestPauseSet}>
+              <Text style={styles.addSetBtnTxt}>+ 1 REST-PAUSE</Text>
+            </TouchableOpacity>
+          )}
         </View>
+        {totalSets > 0 && (
+          <View style={styles.sequenceRow}>
+            {Array.from({ length: totalSets }).map((_, idx) => {
+              const setNum = idx + 1;
+              const setIsRp = isSetRestPause(exercise, setNum);
+              const isCurrent = setNum === currentSet;
+              const isDone = setNum < currentSet;
+              const targetVal = Array.isArray(exercise.targetReps) ? exercise.targetReps[idx] : 10;
+              return (
+                <View
+                  key={idx}
+                  style={[
+                    styles.seqBadge,
+                    isCurrent && (setIsRp ? styles.seqBadgeActiveRp : styles.seqBadgeActive),
+                    isDone && styles.seqBadgeDone
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.seqBadgeTxt,
+                      (isCurrent || isDone) && styles.seqBadgeTxtActive
+                    ]}
+                  >
+                    {isDone ? '✓ ' : ''}
+                    {setIsRp ? `S${setNum}: Rest-Pause` : `S${setNum}: ${targetVal || 10} reps`}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {isRestPause ? (
@@ -398,9 +463,17 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 13, color: '#666', fontWeight: 'bold', marginBottom: 4 },
   title: { fontSize: 22, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-  setInfo: { fontSize: 16, color: '#666', fontWeight: 'bold', marginRight: 10 },
-  addSetBtn: { backgroundColor: '#0bc0af', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 },
-  addSetBtnTxt: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  setInfo: { fontSize: 16, color: '#666', fontWeight: 'bold', marginRight: 6 },
+  addSetBtn: { backgroundColor: '#0bc0af', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
+  addRpSetBtn: { backgroundColor: '#ff9800', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
+  addSetBtnTxt: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  sequenceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 10 },
+  seqBadge: { backgroundColor: '#fff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#ccebe8' },
+  seqBadgeActive: { backgroundColor: '#0bc0af', borderColor: '#0bc0af' },
+  seqBadgeActiveRp: { backgroundColor: '#ff9800', borderColor: '#ff9800' },
+  seqBadgeDone: { backgroundColor: '#4caf50', borderColor: '#4caf50' },
+  seqBadgeTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
+  seqBadgeTxtActive: { color: '#fff' },
   inputsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

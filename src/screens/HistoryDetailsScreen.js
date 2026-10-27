@@ -218,6 +218,47 @@ export default function HistoryDetailsScreen() {
               <Text style={styles.setDetail}>Aucun set loggé.</Text>
             )}
 
+            {isEditing && ex.type !== 'time' && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#0bc0af', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
+                  onPress={() => {
+                    const newExercises = [...editedItem.exercises];
+                    const currentLogged = newExercises[idx].loggedSets || [];
+                    const lastWeight = currentLogged.length > 0 ? currentLogged[currentLogged.length - 1].weight : '20';
+                    newExercises[idx].loggedSets = [...currentLogged, { weight: String(lastWeight), reps: '10' }];
+                    setEditedItem({ ...editedItem, exercises: newExercises });
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>+ 1 Série</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#ff9800', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
+                  onPress={() => {
+                    const newExercises = [...editedItem.exercises];
+                    const currentLogged = newExercises[idx].loggedSets || [];
+                    const lastWeight = currentLogged.length > 0 ? currentLogged[currentLogged.length - 1].weight : '20';
+                    newExercises[idx].loggedSets = [
+                      ...currentLogged,
+                      {
+                        weight: String(lastWeight),
+                        reps: '15',
+                        isRestPause: true,
+                        segments: [
+                          { reps: '8', rest: '20' },
+                          { reps: '4', rest: '20' },
+                          { reps: '3', rest: '' }
+                        ]
+                      }
+                    ];
+                    setEditedItem({ ...editedItem, exercises: newExercises });
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>+ 1 Rest-Pause</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Notes Section */}
             {isEditing ? (
               <TextInput
