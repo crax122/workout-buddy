@@ -320,6 +320,9 @@ export default function ActiveWorkoutScreen() {
             <RestTimer 
               initialSeconds={exercises[activeExIndex].restTime || 60} 
               onSkip={handleSkipRest} 
+              exerciseName={activeExercise.name}
+              note={activeExercise.notes || ''}
+              onChangeNote={handleNoteChange}
               nextExercise={
                 exercises[activeExIndex].completed && activeExIndex < exercises.length - 1 
                   ? exercises[activeExIndex+1].name 
@@ -371,16 +374,19 @@ export default function ActiveWorkoutScreen() {
             />
           )}
 
-          <View style={styles.notesContainer}>
-            <Text style={styles.notesLabel}>📝 Note ({activeExercise.name}) :</Text>
-            <TextInput
-              style={styles.notesInput}
-              placeholder="Écrire ou modifier une note pour cet exercice..."
-              value={activeExercise.notes || ''}
-              onChangeText={handleNoteChange}
-              multiline
-            />
-          </View>
+          {!isResting && (
+            <View style={styles.notesContainer}>
+              <Text style={styles.notesLabel}>📝 Note ({activeExercise.name}) :</Text>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Écrire ou modifier une note pour cet exercice..."
+                placeholderTextColor="#888"
+                value={activeExercise.notes || ''}
+                onChangeText={handleNoteChange}
+                multiline
+              />
+            </View>
+          )}
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>

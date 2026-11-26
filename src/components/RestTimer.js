@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 
-export default function RestTimer({ initialSeconds, onSkip, nextExercise }) {
+export default function RestTimer({
+  initialSeconds,
+  onSkip,
+  nextExercise,
+  exerciseName,
+  note = '',
+  onChangeNote
+}) {
   const [seconds, setSeconds] = useState(initialSeconds);
 
   useEffect(() => {
@@ -21,7 +28,7 @@ export default function RestTimer({ initialSeconds, onSkip, nextExercise }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>COUNTDOWN:</Text>
+      <Text style={styles.title}>REPOS EN COURS :</Text>
       <View style={styles.timeControls}>
         <TouchableOpacity style={styles.adjustBtn} onPress={() => setSeconds(s => Math.max(0, s - 15))}>
           <Text style={styles.adjustBtnTxt}>-15s</Text>
@@ -36,6 +43,20 @@ export default function RestTimer({ initialSeconds, onSkip, nextExercise }) {
         <Text style={styles.skipBtnTxt}>SKIP REST</Text>
       </TouchableOpacity>
 
+      {onChangeNote && (
+        <View style={styles.noteBox}>
+          <Text style={styles.noteLabel}>📝 Commentaire ({exerciseName || 'Exercice'}) :</Text>
+          <TextInput
+            style={styles.noteInput}
+            placeholder="Ajouter un commentaire pendant le repos..."
+            placeholderTextColor="#888"
+            value={note}
+            onChangeText={onChangeNote}
+            multiline
+          />
+        </View>
+      )}
+
       {nextExercise && (
         <View style={styles.nextContainer}>
           <Text style={styles.nextLabel}>UP NEXT:</Text>
@@ -49,21 +70,24 @@ export default function RestTimer({ initialSeconds, onSkip, nextExercise }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    padding: 18,
+    padding: 14,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#0bc0af',
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 6,
   },
-  title: { fontSize: 16, color: '#666', fontWeight: 'bold', marginBottom: 12 },
-  timeControls: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  adjustBtn: { backgroundColor: '#e6f7f6', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, marginHorizontal: 10 },
-  adjustBtnTxt: { color: '#0bc0af', fontWeight: 'bold', fontSize: 16 },
-  time: { fontSize: 48, fontWeight: 'bold', color: '#333' },
-  skipBtn: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#ccc', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 24, marginBottom: 18 },
-  skipBtnTxt: { color: '#666', fontSize: 16, fontWeight: 'bold' },
-  nextContainer: { backgroundColor: '#0bc0af', width: '100%', padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nextLabel: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
-  nextExercise: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
+  title: { fontSize: 14, color: '#666', fontWeight: 'bold', marginBottom: 6 },
+  timeControls: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  adjustBtn: { backgroundColor: '#e6f7f6', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, marginHorizontal: 10 },
+  adjustBtnTxt: { color: '#0bc0af', fontWeight: 'bold', fontSize: 15 },
+  time: { fontSize: 42, fontWeight: 'bold', color: '#333' },
+  skipBtn: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#ccc', paddingVertical: 8, paddingHorizontal: 24, borderRadius: 20, marginBottom: 12 },
+  skipBtnTxt: { color: '#666', fontSize: 14, fontWeight: 'bold' },
+  noteBox: { width: '100%', backgroundColor: '#f4fbfa', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#0bc0af', marginBottom: 12 },
+  noteLabel: { fontSize: 13, fontWeight: 'bold', color: '#0bc0af', marginBottom: 4 },
+  noteInput: { fontSize: 15, color: '#111111', minHeight: 54, textAlignVertical: 'top' },
+  nextContainer: { backgroundColor: '#0bc0af', width: '100%', padding: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  nextLabel: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  nextExercise: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
