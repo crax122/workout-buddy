@@ -174,17 +174,19 @@ export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
     if (h && h.name) workoutNamesSet.add(h.name);
   });
 
-  const filteredHistory = (history || []).filter(h => {
-    if (!h) return false;
-    if (workoutFilter && workoutFilter !== 'ALL') {
-      return h.name === workoutFilter;
-    }
-    return true;
-  });
+  const filteredHistory = (history || [])
+    .map((h, rawIdx) => ({ h, rawIdx }))
+    .filter(({ h }) => {
+      if (!h) return false;
+      if (workoutFilter && workoutFilter !== 'ALL') {
+        return h.name === workoutFilter;
+      }
+      return true;
+    });
 
   const exerciseMap = {};
 
-  filteredHistory.forEach((h, hIdx) => {
+  filteredHistory.forEach(({ h, rawIdx }) => {
     if (!Array.isArray(h.exercises)) return;
     h.exercises.forEach(ex => {
       if (!ex || !ex.name) return;
@@ -201,7 +203,7 @@ export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
       if (ex.type === 'time') {
         const dur = ex.durationSeconds || 0;
         exerciseMap[key].rawSessions.push({
-          historyId: h.id || String(hIdx),
+          historyId: h.id ? String(h.id) : String(rawIdx),
           date: h.date || '',
           workoutName: h.name || 'Séance',
           isTime: true,
@@ -211,7 +213,7 @@ export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
       } else if (Array.isArray(ex.loggedSets) && ex.loggedSets.length > 0) {
         const metrics = computeSetMetrics(ex.loggedSets);
         exerciseMap[key].rawSessions.push({
-          historyId: h.id || String(hIdx),
+          historyId: h.id ? String(h.id) : String(rawIdx),
           date: h.date || '',
           workoutName: h.name || 'Séance',
           isTime: false,

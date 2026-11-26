@@ -422,12 +422,11 @@ export const deleteExerciseSessionFromHistory = async (historyId, exerciseName, 
 
     history = history
       .map((item, idx) => {
-        const matchesId = item.id && historyId && item.id === historyId;
+        const matchesId = item.id && historyId && String(item.id) === String(historyId);
         const matchesFallback =
           !item.id &&
-          String(idx) === String(historyId) &&
-          item.date === sessionDate &&
-          item.name === workoutName;
+          (String(idx) === String(historyId) ||
+            (item.date === sessionDate && item.name === workoutName));
         if (!matchesId && !matchesFallback) return item;
 
         const remainingExercises = (item.exercises || []).filter(

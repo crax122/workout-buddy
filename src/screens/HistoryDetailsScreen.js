@@ -104,7 +104,20 @@ export default function HistoryDetailsScreen() {
 
         {editedItem.exercises && editedItem.exercises.map((ex, idx) => (
           <View key={ex.id || idx} style={styles.exCard}>
-            <Text style={styles.exName}>{idx + 1}. {ex.name}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={[styles.exName, { marginBottom: 0, flex: 1 }]}>{idx + 1}. {ex.name}</Text>
+              {isEditing && (
+                <TouchableOpacity
+                  style={{ backgroundColor: '#ffebee', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, marginLeft: 8 }}
+                  onPress={() => {
+                    const remaining = editedItem.exercises.filter((_, eIdx) => eIdx !== idx);
+                    setEditedItem({ ...editedItem, exercises: remaining });
+                  }}
+                >
+                  <Text style={{ color: '#c62828', fontWeight: 'bold', fontSize: 14 }}>🗑️ Retirer</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             {ex.loggedSets && ex.loggedSets.length > 0 ? (
               ex.loggedSets.map((set, sIdx) => (
