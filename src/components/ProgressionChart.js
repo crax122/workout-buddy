@@ -4,7 +4,8 @@ import Svg, { Line, Polyline, Circle, Text as SvgText, Rect } from 'react-native
 
 const METRICS = [
   { key: 'best1RM', label: '1RM est.', unit: 'kg' },
-  { key: 'maxWeight', label: 'Poids max', unit: 'kg' },
+  { key: 'maxWeight', label: 'Poids', unit: 'kg' },
+  { key: 'totalReps', label: 'Reps', unit: '' },
   { key: 'totalVolume', label: 'Volume', unit: 'kg' }
 ];
 
@@ -17,7 +18,6 @@ export default function ProgressionChart({ exercise }) {
 
   const sessions = exercise.sessions;
   const isTime = exercise.isTime;
-  const isAlt = exercise.isAlternating && !isTime;
 
   const activeMetric = isTime
     ? { key: 'durationMins', label: 'Durée', unit: 'min' }
@@ -30,8 +30,7 @@ export default function ProgressionChart({ exercise }) {
     return {
       idx,
       val,
-      date: s.date || `#${idx + 1}`,
-      bucket: s.repRangeBucket || null
+      date: s.date || `#${idx + 1}`
     };
   });
 
@@ -68,14 +67,8 @@ export default function ProgressionChart({ exercise }) {
   }));
 
   const polylinePoints = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
-
-  // Separate lines for 6-8 and 10-12 when alternating so both progression curves are visible
-  const coords68 = isAlt ? coords.filter(c => c.bucket === '6-8') : [];
-  const coords1012 = isAlt ? coords.filter(c => c.bucket === '10-12') : [];
-
   const yTicks = [minY, Math.round(((minY + maxY) / 2) * 10) / 10, maxY];
 
-  // Show up to 4 evenly spaced x-axis labels so text never overlaps
   const labelIndices = new Set();
   if (coords.length <= 4) {
     coords.forEach((_, i) => labelIndices.add(i));
@@ -109,19 +102,6 @@ export default function ProgressionChart({ exercise }) {
         )}
       </View>
 
-      {isAlt && (
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#ff9800' }]} />
-            <Text style={styles.legendTxt}>6-8 reps</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#0bc0af' }]} />
-            <Text style={styles.legendTxt}>10-12 reps</Text>
-          </View>
-        </View>
-      )}
-
       <View style={styles.svgWrapper}>
         <Svg width="100%" height={145} viewBox={`0 0 ${W} ${H}`}>
           <Rect x={padL} y={padT} width={plotW} height={plotH} fill="#fafafa" rx={4} />
@@ -152,7 +132,7 @@ export default function ProgressionChart({ exercise }) {
             );
           })}
 
-          {!isAlt && coords.length > 1 && (
+          {coords.length > 1 && (
             <Polyline
               points={polylinePoints}
               fill="none"
@@ -162,42 +142,7 @@ export default function ProgressionChart({ exercise }) {
             />
           )}
 
-          {isAlt && coords.length > 1 && (
-            <Polyline
-              points={polylinePoints}
-              fill="none"
-              stroke="#d1c4e9"
-              strokeWidth="1.5"
-              strokeDasharray="3,3"
-            />
-          )}
-
-          {isAlt && coords68.length > 1 && (
-            <Polyline
-              points={coords68.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')}
-              fill="none"
-              stroke="#ff9800"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {isAlt && coords1012.length > 1 && (
-            <Polyline
-              points={coords1012.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')}
-              fill="none"
-              stroke="#0bc0af"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-          )}
-
           {coords.map((c, idx) => {
-            const dotColor = isAlt
-              ? c.bucket === '6-8'
-                ? '#ff9800'
-                : '#0bc0af'
-              : '#673ab7';
             const showVal = coords.length <= 7 || idx === 0 || idx === coords.length - 1 || idx % 2 === 0;
             return (
               <React.Fragment key={idx}>
@@ -205,7 +150,7 @@ export default function ProgressionChart({ exercise }) {
                   cx={c.x}
                   cy={c.y}
                   r="4"
-                  fill={dotColor}
+                  fill="#673ab7"
                   stroke="#fff"
                   strokeWidth="1.5"
                 />
@@ -286,26 +231,6 @@ const styles = StyleSheet.create({
   },
   metricBtnTxtActive: {
     color: '#fff'
-  },
-  legendRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4
-  },
-  legendTxt: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#444'
   },
   svgWrapper: {
     width: '100%',

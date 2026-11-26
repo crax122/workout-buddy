@@ -1,27 +1,5 @@
 import { formatPrevSets } from './db';
 
-const ARM_KEYWORDS = [
-  'bicep',
-  'tricep',
-  'curl',
-  'marteau',
-  'hammer',
-  'pupitre',
-  'preacher',
-  'barre au front',
-  'french press',
-  'skull',
-  'pushdown',
-  'kickback',
-  'dips',
-  'extension'
-];
-
-export const isArmExerciseName = (name = '') => {
-  const lower = name.trim().toLowerCase();
-  return ARM_KEYWORDS.some(kw => lower.includes(kw));
-};
-
 const extractFirstNumber = (val, fallback = 0) => {
   if (val === undefined || val === null) return fallback;
   const match = String(val).match(/\d+(\.\d+)?/);
@@ -33,58 +11,61 @@ export const computeSetMetrics = (loggedSets = []) => {
   let totalVolume = 0;
   let totalReps = 0;
   let best1RM = 0;
-  const primaryRepsList = [];
+  let setWeightSum = 0;
+  let setCount = 0;
 
   (loggedSets || []).forEach(set => {
     if (!set) return;
     if (set.isDropSet && Array.isArray(set.drops) && set.drops.length > 0) {
-      const firstDropReps = extractFirstNumber(set.drops[0]?.reps, 0);
-      if (firstDropReps > 0) primaryRepsList.push(firstDropReps);
       set.drops.forEach(d => {
         const w = parseFloat(d.weight) || 0;
         const r = extractFirstNumber(d.reps, 0);
         if (w > maxWeight) maxWeight = w;
         totalVolume += w * r;
         totalReps += r;
+        if (w > 0) {
+          setWeightSum += w;
+          setCount += 1;
+        }
         const rm = r <= 1 ? w : w * (1 + r / 30);
         if (rm > best1RM) best1RM = rm;
       });
     } else if (set.isRestPause && Array.isArray(set.segments) && set.segments.length > 0) {
       const w = parseFloat(set.weight) || 0;
       const firstSegReps = extractFirstNumber(set.segments[0]?.reps, 0);
-      if (firstSegReps > 0) primaryRepsList.push(firstSegReps);
       const sumSegReps = set.segments.reduce((acc, s) => acc + extractFirstNumber(s.reps, 0), 0);
       if (w > maxWeight) maxWeight = w;
       totalVolume += w * sumSegReps;
       totalReps += sumSegReps;
+      if (w > 0) {
+        setWeightSum += w;
+        setCount += 1;
+      }
       const rm = firstSegReps <= 1 ? w : w * (1 + firstSegReps / 30);
       if (rm > best1RM) best1RM = rm;
     } else {
       const w = parseFloat(set.weight) || 0;
       const r = extractFirstNumber(set.reps, 0);
-      if (r > 0) primaryRepsList.push(r);
       if (w > maxWeight) maxWeight = w;
       totalVolume += w * r;
       totalReps += r;
+      if (w > 0) {
+        setWeightSum += w;
+        setCount += 1;
+      }
       const rm = r <= 1 ? w : w * (1 + r / 30);
       if (rm > best1RM) best1RM = rm;
     }
   });
 
-  const avgReps =
-    primaryRepsList.length > 0
-      ? primaryRepsList.reduce((a, b) => a + b, 0) / primaryRepsList.length
-      : 0;
-
-  const repRangeBucket = avgReps > 0 && avgReps <= 8.5 ? '6-8' : '10-12';
+  const avgWeight = setCount > 0 ? Math.round((setWeightSum / setCount) * 10) / 10 : maxWeight;
 
   return {
     maxWeight,
+    avgWeight,
     totalVolume: Math.round(totalVolume * 10) / 10,
     totalReps,
-    avgReps: Math.round(avgReps * 10) / 10,
     best1RM: Math.round(best1RM * 10) / 10,
-    repRangeBucket,
     setsSummary: formatPrevSets(loggedSets)
   };
 };
@@ -104,8 +85,14 @@ const computeDelta = (curr, prev) => {
   const oneRMDiff = Math.round((curr.best1RM - prev.best1RM) * 10) / 10;
   const repsDiff = curr.totalReps - prev.totalReps;
 
+  // Real progression evaluation combining weight lifted, reps, 1RM, and volume
   let status = 'same';
-  if (oneRMDiff > 0.25 || weightDiff > 0 || (weightDiff === 0 && repsDiff > 0) || volumeDiff > 0) {
+  if (
+    oneRMDiff > 0.25 ||
+    (weightDiff > 0 && repsDiff >= 0) ||
+    (weightDiff === 0 && repsDiff > 0) ||
+    (volumeDiff > 0 && oneRMDiff >= -0.25)
+  ) {
     status = 'up';
   } else if (oneRMDiff < -0.5 || (weightDiff < 0 && volumeDiff < 0)) {
     status = 'down';
@@ -120,20 +107,65 @@ const computeDelta = (curr, prev) => {
   };
 };
 
-const buildCycleSummary = (bucketEntries) => {
-  if (!bucketEntries || bucketEntries.length === 0) return null;
-  const first = bucketEntries[0];
-  const latest = bucketEntries[bucketEntries.length - 1];
-  const prev = bucketEntries.length >= 2 ? bucketEntries[bucketEntries.length - 2] : null;
-  const deltaFromFirst = computeDelta(latest, bucketEntries.length >= 2 ? first : null);
-  const deltaFromPrev = computeDelta(latest, prev);
-  return {
-    count: bucketEntries.length,
-    first,
-    latest,
-    deltaFromFirst,
-    deltaFromPrev
-  };
+const formatSigned = (v, unit = '') => (v > 0 ? `+${v}${unit}` : `${v}${unit}`);
+
+const buildAnalysisText = (sessions, first, latest, overallDelta) => {
+  if (!sessions || sessions.length === 0) return '';
+
+  if (sessions.length === 1) {
+    return `1ère séance de référence : ${latest.maxWeight} kg max pour ${latest.totalReps} reps totales (volume : ${latest.totalVolume} kg, 1RM estimé : ${latest.best1RM} kg).`;
+  }
+
+  const parts = [];
+  const prev = sessions[sessions.length - 2];
+  const oneRMPct =
+    first.best1RM > 0
+      ? Math.round(((latest.best1RM - first.best1RM) / first.best1RM) * 1000) / 10
+      : 0;
+
+  // 1. Overall evolution from first to latest session
+  if (overallDelta.oneRMDiff > 0.25) {
+    parts.push(
+      `Force estimée (1RM) en hausse de ${formatSigned(overallDelta.oneRMDiff, ' kg')} (${formatSigned(oneRMPct, '%')}) depuis la 1ère séance (${first.best1RM} → ${latest.best1RM} kg).`
+    );
+  } else if (overallDelta.oneRMDiff < -0.5) {
+    parts.push(
+      `Force estimée (1RM) en baisse de ${overallDelta.oneRMDiff} kg (${oneRMPct}%) par rapport à la 1ère séance (${first.best1RM} → ${latest.best1RM} kg).`
+    );
+  } else {
+    parts.push(
+      `Force estimée (1RM) stable autour de ${latest.best1RM} kg depuis la 1ère séance.`
+    );
+  }
+
+  // 2. Last session vs previous session (weight + reps + volume)
+  if (latest.weightDiff > 0 && latest.repsDiff >= 0) {
+    parts.push(
+      `Dernière séance : +${latest.weightDiff} kg de charge max avec ${formatSigned(latest.repsDiff, ' reps')} (${formatSigned(latest.volumeDiff, ' kg')} de volume).`
+    );
+  } else if (latest.weightDiff > 0 && latest.repsDiff < 0) {
+    parts.push(
+      `Dernière séance : montée en charge (+${latest.weightDiff} kg) avec ${latest.repsDiff} reps (1RM ${formatSigned(latest.oneRMDiff, ' kg')}).`
+    );
+  } else if (latest.weightDiff === 0 && latest.repsDiff > 0) {
+    parts.push(
+      `Dernière séance : même charge (${latest.maxWeight} kg) mais +${latest.repsDiff} reps réalisées (+${latest.volumeDiff} kg de volume).`
+    );
+  } else if (latest.weightDiff < 0 && latest.repsDiff > 0) {
+    parts.push(
+      `Dernière séance : charge plus légère (${latest.weightDiff} kg) compensée par +${latest.repsDiff} reps (volume ${formatSigned(latest.volumeDiff, ' kg')}).`
+    );
+  } else if (latest.weightDiff === 0 && latest.repsDiff === 0) {
+    parts.push(
+      `Dernière séance identique à la précédente (${prev.maxWeight} kg × ${prev.totalReps} reps).`
+    );
+  } else {
+    parts.push(
+      `Dernière séance : ${formatSigned(latest.weightDiff, ' kg')} sur la charge max et ${formatSigned(latest.repsDiff, ' reps')} (volume ${formatSigned(latest.volumeDiff, ' kg')}).`
+    );
+  }
+
+  return parts.join(' ');
 };
 
 export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
@@ -203,37 +235,31 @@ export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
         });
         const latest = sessions[sessions.length - 1];
         const first = sessions[0];
+        const overallDurDiff = latest.durationSeconds - first.durationSeconds;
+        const analysisText =
+          sessions.length === 1
+            ? `1ère séance chronométrée : ${Math.floor(latest.durationSeconds / 60)}m ${latest.durationSeconds % 60}s.`
+            : `Durée ${overallDurDiff > 0 ? 'en hausse' : overallDurDiff < 0 ? 'en baisse' : 'stable'} (${formatSigned(overallDurDiff, 's')} depuis la 1ère séance).`;
+
         return {
           key: item.key,
           name: item.name,
           isTime: true,
-          isAlternating: false,
           sessionCount: sessions.length,
           sessions,
           latest,
           first,
-          overallStatus: latest.status
+          overallStatus: latest.status,
+          analysisText
         };
       }
 
       const strengthSessions = item.rawSessions.filter(s => !s.isTime);
-      const has6_8 = strengthSessions.some(s => s.repRangeBucket === '6-8');
-      const has10_12 = strengthSessions.some(s => s.repRangeBucket === '10-12');
-      const isAlternating = isArmExerciseName(item.name) || (has6_8 && has10_12);
-
-      const lastByBucket = { '6-8': null, '10-12': null };
       const sessions = strengthSessions.map((s, idx) => {
-        let comparablePrev = null;
-        if (isAlternating) {
-          comparablePrev = lastByBucket[s.repRangeBucket];
-          lastByBucket[s.repRangeBucket] = s;
-        } else {
-          comparablePrev = idx > 0 ? strengthSessions[idx - 1] : null;
-        }
-        const delta = computeDelta(s, comparablePrev);
+        const prev = idx > 0 ? strengthSessions[idx - 1] : null;
+        const delta = computeDelta(s, prev);
         return {
           ...s,
-          comparablePrevDate: comparablePrev ? comparablePrev.date : null,
           ...delta
         };
       });
@@ -241,42 +267,31 @@ export const analyzeProgression = (history = [], workoutFilter = 'ALL') => {
       const bestWeight = Math.max(...sessions.map(s => s.maxWeight));
       const best1RM = Math.max(...sessions.map(s => s.best1RM));
       const bestVolume = Math.max(...sessions.map(s => s.totalVolume));
-
-      const cycle6_8 = isAlternating
-        ? buildCycleSummary(sessions.filter(s => s.repRangeBucket === '6-8'))
-        : null;
-      const cycle10_12 = isAlternating
-        ? buildCycleSummary(sessions.filter(s => s.repRangeBucket === '10-12'))
-        : null;
+      const bestReps = Math.max(...sessions.map(s => s.totalReps));
 
       const latest = sessions[sessions.length - 1];
       const first = sessions[0];
-      const overallDelta = !isAlternating
-        ? computeDelta(latest, sessions.length >= 2 ? first : null)
-        : latest.status !== 'first'
-          ? { status: latest.status, weightDiff: latest.weightDiff, volumeDiff: latest.volumeDiff, oneRMDiff: latest.oneRMDiff, repsDiff: latest.repsDiff }
-          : (cycle6_8?.deltaFromFirst?.status !== 'first' ? cycle6_8.deltaFromFirst : cycle10_12?.deltaFromFirst) || { status: 'first', weightDiff: 0, volumeDiff: 0, oneRMDiff: 0, repsDiff: 0 };
+      const overallDelta = computeDelta(latest, sessions.length >= 2 ? first : null);
+      const analysisText = buildAnalysisText(sessions, first, latest, overallDelta);
 
       return {
         key: item.key,
         name: item.name,
         isTime: false,
-        isAlternating,
         sessionCount: sessions.length,
         sessions,
         bestWeight,
         best1RM,
         bestVolume,
-        cycle6_8,
-        cycle10_12,
+        bestReps,
         latest,
         first,
-        overallStatus: overallDelta.status,
-        overallDelta
+        overallStatus: sessions.length >= 2 ? latest.status : 'first',
+        overallDelta,
+        analysisText
       };
     });
 
-  // Sort exercises by number of sessions descending, then alphabetically
   exercises.sort((a, b) => b.sessionCount - a.sessionCount || a.name.localeCompare(b.name));
 
   return {

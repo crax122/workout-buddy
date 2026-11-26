@@ -68,7 +68,7 @@ export default function ProgressionScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>📈 Progression</Text>
         <Text style={styles.subtitle}>
-          Analyse séance par séance ({analysis.totalSessionsAnalyzed} séance{analysis.totalSessionsAnalyzed > 1 ? 's' : ''})
+          Analyse par exercice — poids levé & répétitions ({analysis.totalSessionsAnalyzed} séance{analysis.totalSessionsAnalyzed > 1 ? 's' : ''})
         </Text>
       </View>
 
@@ -137,52 +137,7 @@ export default function ProgressionScreen() {
                 </View>
               </TouchableOpacity>
 
-              {ex.isAlternating && (
-                <View style={styles.altBanner}>
-                  <Text style={styles.altBannerTxt}>
-                    🔄 Alternance 6-8 / 10-12 reps — comparaison effectuée à plage équivalente
-                  </Text>
-                  <View style={styles.cyclesRow}>
-                    <View style={styles.cycleBox}>
-                      <Text style={styles.cycleTitle}>Cycle 6-8 reps</Text>
-                      {ex.cycle6_8 ? (
-                        <>
-                          <Text style={styles.cycleStat}>
-                            {ex.cycle6_8.count} séance{ex.cycle6_8.count > 1 ? 's' : ''} • Dernier: {ex.cycle6_8.latest.maxWeight} kg
-                          </Text>
-                          <Text style={styles.cycleDelta}>
-                            {ex.cycle6_8.count > 1
-                              ? `Poids: ${formatSigned(ex.cycle6_8.deltaFromFirst.weightDiff, ' kg')} • 1RM: ${formatSigned(ex.cycle6_8.deltaFromFirst.oneRMDiff, ' kg')}`
-                              : `1RM est.: ${ex.cycle6_8.latest.best1RM} kg`}
-                          </Text>
-                        </>
-                      ) : (
-                        <Text style={styles.cycleEmpty}>Aucune séance 6-8</Text>
-                      )}
-                    </View>
-
-                    <View style={styles.cycleBox}>
-                      <Text style={styles.cycleTitle}>Cycle 10-12 reps</Text>
-                      {ex.cycle10_12 ? (
-                        <>
-                          <Text style={styles.cycleStat}>
-                            {ex.cycle10_12.count} séance{ex.cycle10_12.count > 1 ? 's' : ''} • Dernier: {ex.cycle10_12.latest.maxWeight} kg
-                          </Text>
-                          <Text style={styles.cycleDelta}>
-                            {ex.cycle10_12.count > 1
-                              ? `Poids: ${formatSigned(ex.cycle10_12.deltaFromFirst.weightDiff, ' kg')} • 1RM: ${formatSigned(ex.cycle10_12.deltaFromFirst.oneRMDiff, ' kg')}`
-                              : `1RM est.: ${ex.cycle10_12.latest.best1RM} kg`}
-                          </Text>
-                        </>
-                      ) : (
-                        <Text style={styles.cycleEmpty}>Aucune séance 10-12</Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {!ex.isTime && !ex.isAlternating && (
+              {!ex.isTime && (
                 <View style={styles.recordsRow}>
                   <View style={styles.recordPill}>
                     <Text style={styles.recordLabel}>Max Poids</Text>
@@ -193,11 +148,22 @@ export default function ProgressionScreen() {
                     <Text style={styles.recordVal}>{ex.best1RM} kg</Text>
                   </View>
                   <View style={styles.recordPill}>
+                    <Text style={styles.recordLabel}>Max Reps</Text>
+                    <Text style={styles.recordVal}>{ex.bestReps}</Text>
+                  </View>
+                  <View style={styles.recordPill}>
                     <Text style={styles.recordLabel}>Meilleur Vol.</Text>
                     <Text style={styles.recordVal}>{ex.bestVolume} kg</Text>
                   </View>
                 </View>
               )}
+
+              {ex.analysisText ? (
+                <View style={[styles.analysisBox, { borderColor: meta.border, backgroundColor: meta.bg }]}>
+                  <Text style={[styles.analysisTitle, { color: meta.color }]}>🔍 Analyse :</Text>
+                  <Text style={styles.analysisTxt}>{ex.analysisText}</Text>
+                </View>
+              ) : null}
 
               <ProgressionChart exercise={ex} />
 
@@ -212,16 +178,6 @@ export default function ProgressionScreen() {
                           <Text style={styles.sessionDate}>
                             #{sessionNum} • {s.date} ({s.workoutName})
                           </Text>
-                          {!ex.isTime && ex.isAlternating && (
-                            <View
-                              style={[
-                                styles.bucketBadge,
-                                s.repRangeBucket === '6-8' ? styles.bucket68 : styles.bucket1012
-                              ]}
-                            >
-                              <Text style={styles.bucketBadgeTxt}>{s.repRangeBucket} reps</Text>
-                            </View>
-                          )}
                         </View>
 
                         {ex.isTime ? (
@@ -234,12 +190,12 @@ export default function ProgressionScreen() {
                             <Text style={styles.sessionSets}>{s.setsSummary}</Text>
                             <View style={styles.sessionBottom}>
                               <Text style={styles.sessionMetrics}>
-                                Max: {s.maxWeight} kg • Vol: {s.totalVolume} kg • 1RM: {s.best1RM} kg
+                                Max: {s.maxWeight} kg • Reps: {s.totalReps} • Vol: {s.totalVolume} kg • 1RM: {s.best1RM} kg
                               </Text>
                               <Text style={[styles.sessionDelta, { color: sMeta.color }]}>
                                 {s.status === 'first'
                                   ? '🆕 1ère séance'
-                                  : `${sMeta.label} (${formatSigned(s.weightDiff, ' kg')} poids, ${formatSigned(s.volumeDiff, ' kg')} vol, ${formatSigned(s.oneRMDiff, ' kg')} 1RM)`}
+                                  : `${sMeta.label} (${formatSigned(s.weightDiff, ' kg')} poids, ${formatSigned(s.repsDiff, ' reps')}, ${formatSigned(s.oneRMDiff, ' kg')} 1RM)`}
                               </Text>
                             </View>
                           </>
@@ -265,7 +221,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 14 },
   header: { alignItems: 'center', marginVertical: 12 },
   title: { fontSize: 24, fontWeight: 'bold', color: '#673ab7' },
-  subtitle: { fontSize: 13, color: '#666', marginTop: 4 },
+  subtitle: { fontSize: 13, color: '#666', marginTop: 4, textAlign: 'center' },
   filterScroll: { marginBottom: 10 },
   filterChip: { backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#ddd' },
   filterChipActive: { backgroundColor: '#673ab7', borderColor: '#673ab7' },
@@ -280,26 +236,17 @@ const styles = StyleSheet.create({
   exSub: { fontSize: 12, color: '#777', marginTop: 2 },
   statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1 },
   statusBadgeTxt: { fontSize: 12, fontWeight: 'bold' },
-  altBanner: { backgroundColor: '#f3e5f5', padding: 10, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: '#ce93d8' },
-  altBannerTxt: { fontSize: 12, fontWeight: 'bold', color: '#6a1b9a', marginBottom: 8 },
-  cyclesRow: { flexDirection: 'row', gap: 8 },
-  cycleBox: { flex: 1, backgroundColor: '#fff', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#e1bee7' },
-  cycleTitle: { fontSize: 12, fontWeight: 'bold', color: '#4a148c', marginBottom: 2 },
-  cycleStat: { fontSize: 12, color: '#333', fontWeight: 'bold' },
-  cycleDelta: { fontSize: 11, color: '#2e7d32', fontWeight: 'bold', marginTop: 2 },
-  cycleEmpty: { fontSize: 11, color: '#888', fontStyle: 'italic' },
-  recordsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  recordPill: { flex: 1, backgroundColor: '#f4fbfa', padding: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ccebe8' },
-  recordLabel: { fontSize: 11, color: '#666', fontWeight: 'bold' },
-  recordVal: { fontSize: 14, color: '#0bc0af', fontWeight: 'bold', marginTop: 2 },
+  recordsRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  recordPill: { flex: 1, backgroundColor: '#f4fbfa', padding: 7, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ccebe8' },
+  recordLabel: { fontSize: 10, color: '#666', fontWeight: 'bold' },
+  recordVal: { fontSize: 13, color: '#0bc0af', fontWeight: 'bold', marginTop: 2 },
+  analysisBox: { padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 10 },
+  analysisTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 3 },
+  analysisTxt: { fontSize: 13, color: '#222', lineHeight: 18 },
   sessionsList: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8 },
   sessionRow: { backgroundColor: '#fafafa', padding: 10, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#eee' },
   sessionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   sessionDate: { fontSize: 12, fontWeight: 'bold', color: '#1b2a47', flex: 1 },
-  bucketBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 },
-  bucket68: { backgroundColor: '#ffe0b2' },
-  bucket1012: { backgroundColor: '#b2ebf2' },
-  bucketBadgeTxt: { fontSize: 11, fontWeight: 'bold', color: '#1b2a47' },
   sessionSets: { fontSize: 13, color: '#333', fontWeight: '600', marginBottom: 4 },
   sessionDetail: { fontSize: 13, color: '#333', fontWeight: 'bold' },
   sessionBottom: { marginTop: 2 },
