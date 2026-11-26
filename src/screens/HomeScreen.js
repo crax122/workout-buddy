@@ -70,9 +70,15 @@ export default function HomeScreen() {
       </View>
 
       <TouchableOpacity 
-        style={[styles.startBtn, { backgroundColor: '#e91e63', marginBottom: 30 }]} 
+        style={[styles.startBtn, { backgroundColor: '#e91e63', marginBottom: 10 }]} 
         onPress={() => navigation.navigate('CardioZones')}>
         <Text style={[styles.startBtnTxt, {fontSize: 16}]}>❤️ CARDIO ZONES (Karvonen)</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.startBtn, { backgroundColor: '#673ab7', marginBottom: 30 }]} 
+        onPress={() => navigation.navigate('Progression')}>
+        <Text style={[styles.startBtnTxt, {fontSize: 16}]}>📈 PROGRESSION</Text>
       </TouchableOpacity>
 
       <Text style={styles.sectionTitle}>Saved Workouts</Text>
