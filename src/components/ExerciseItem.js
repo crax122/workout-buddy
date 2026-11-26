@@ -106,7 +106,10 @@ const buildInitialDrops = (exercise, currentSet, initialWeight, initialReps) => 
   if (Array.isArray(exercise.dropSetSegments) && exercise.dropSetSegments.length > 0) {
     let runningWeight = String(initialWeight || '0');
     return exercise.dropSetSegments.map((seg, idx) => {
-      if (idx > 0) {
+      const hasExplicitWeight = seg.weight !== undefined && String(seg.weight).trim() !== '';
+      if (hasExplicitWeight) {
+        runningWeight = String(seg.weight).trim();
+      } else if (idx > 0) {
         runningWeight = computeSuggestedDropWeight(runningWeight, seg.drop || '-20%');
       }
       return {

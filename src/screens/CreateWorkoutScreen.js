@@ -10,9 +10,9 @@ const DEFAULT_RP_SEGMENTS = [
 ];
 
 const DEFAULT_DROP_SEGMENTS = [
-  { reps: '8-10', drop: '' },
-  { reps: '8-10', drop: '-20%' },
-  { reps: '10-12', drop: '-20%' }
+  { weight: '', reps: '8-10', drop: '' },
+  { weight: '', reps: '8-10', drop: '-20%' },
+  { weight: '', reps: '10-12', drop: '-20%' }
 ];
 
 export const formatRestPauseSegments = (segments) => {
@@ -29,11 +29,15 @@ export const formatRestPauseSegments = (segments) => {
 export const formatDropSetSegments = (segments) => {
   if (!Array.isArray(segments) || segments.length === 0) return '';
   return segments
-    .map((seg, i) =>
-      i === 0
+    .map((seg, i) => {
+      const hasW = seg.weight !== undefined && String(seg.weight).trim() !== '';
+      if (hasW) {
+        return `${String(seg.weight).trim()} kg x ${seg.reps} reps`;
+      }
+      return i === 0
         ? `${seg.reps} reps`
-        : `(${seg.drop || '-20%'}) ${seg.reps} reps`
-    )
+        : `(${seg.drop || '-20%'}) ${seg.reps} reps`;
+    })
     .join(' → ');
 };
 
@@ -163,7 +167,7 @@ export default function CreateWorkoutScreen() {
   };
 
   const handleAddDropSegment = () => {
-    setDropSegments([...dropSegments, { reps: '10-12', drop: '-20%' }]);
+    setDropSegments([...dropSegments, { weight: '', reps: '10-12', drop: '-20%' }]);
   };
 
   const handleRemoveDropSegment = (index) => {
@@ -253,6 +257,7 @@ export default function CreateWorkoutScreen() {
     } else if (newExType === 'drop-set') {
       const dsSetsCount = parseInt(newDsSetsInput, 10) || 2;
       const cleanedDropSegments = dropSegments.map((seg, idx) => ({
+        weight: (seg.weight || '').trim(),
         reps: (seg.reps || '').trim() || '8-10',
         drop: idx === 0 ? '' : ((seg.drop || '').trim() || '-20%')
       }));
@@ -293,6 +298,7 @@ export default function CreateWorkoutScreen() {
         rest: idx < rpSegments.length - 1 ? ((seg.rest || '').trim() || '15-20') : ''
       }));
       const cleanedDropSegments = dropSegments.map((seg, idx) => ({
+        weight: (seg.weight || '').trim(),
         reps: (seg.reps || '').trim() || '8-10',
         drop: idx === 0 ? '' : ((seg.drop || '').trim() || '-20%')
       }));
@@ -688,19 +694,13 @@ export default function CreateWorkoutScreen() {
                   </>
                 )}
 
-                <Text style={styles.label}>Paliers du Drop Set (Répétitions & Baisse de charge)</Text>
+                <Text style={styles.label}>Paliers du Drop Set (Poids & Répétitions)</Text>
                 {dropSegments.map((seg, idx) => (
                   <View key={idx} style={styles.rpSegmentCard}>
                     <View style={styles.rpSegmentRow}>
                       <Text style={styles.rpSegmentLabel}>
-                        {idx === 0 ? 'Départ (reps) :' : `Drop ${idx} (reps) :`}
+                        {idx === 0 ? 'Départ (Poids / Reps) :' : `Drop ${idx} (Poids / Reps) :`}
                       </Text>
-                      <TextInput
-                        style={styles.rpSmallInput}
-                        value={seg.reps}
-                        onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
-                        placeholder="ex: 8-10"
-                      />
                       {dropSegments.length > 1 && (
                         <TouchableOpacity
                           style={styles.rpDeleteSegBtn}
@@ -710,14 +710,34 @@ export default function CreateWorkoutScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
+                    <View style={[styles.rpSegmentRow, { marginTop: 8, gap: 8 }]}>
+                      <Text style={styles.dsDropLabel}>Poids (kg) :</Text>
+                      <TextInput
+                        style={styles.rpSmallInput}
+                        value={seg.weight !== undefined ? String(seg.weight) : ''}
+                        onChangeText={(val) => handleUpdateDropSegment(idx, 'weight', val)}
+                        placeholder="ex: 40"
+                        placeholderTextColor="#888"
+                        keyboardType="numeric"
+                      />
+                      <Text style={styles.rpSegmentLabel}>Reps :</Text>
+                      <TextInput
+                        style={styles.rpSmallInput}
+                        value={seg.reps}
+                        onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
+                        placeholder="ex: 8-10"
+                        placeholderTextColor="#888"
+                      />
+                    </View>
                     {idx > 0 && (
                       <View style={[styles.rpSegmentRow, { marginTop: 8 }]}>
-                        <Text style={styles.dsDropLabel}>Baisse de poids :</Text>
+                        <Text style={styles.dsDropLabel}>Baisse (optionnel) :</Text>
                         <TextInput
                           style={styles.rpSmallInput}
                           value={seg.drop}
                           onChangeText={(val) => handleUpdateDropSegment(idx, 'drop', val)}
                           placeholder="ex: -20%"
+                          placeholderTextColor="#888"
                         />
                       </View>
                     )}
@@ -815,19 +835,13 @@ export default function CreateWorkoutScreen() {
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>Paliers du Drop Set (Répétitions & Baisse de charge)</Text>
+            <Text style={styles.label}>Paliers du Drop Set (Poids & Répétitions)</Text>
             {dropSegments.map((seg, idx) => (
               <View key={idx} style={styles.rpSegmentCard}>
                 <View style={styles.rpSegmentRow}>
                   <Text style={styles.rpSegmentLabel}>
-                    {idx === 0 ? 'Départ (reps) :' : `Drop ${idx} (reps) :`}
+                    {idx === 0 ? 'Départ (Poids / Reps) :' : `Drop ${idx} (Poids / Reps) :`}
                   </Text>
-                  <TextInput
-                    style={styles.rpSmallInput}
-                    value={seg.reps}
-                    onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
-                    placeholder="ex: 8-10"
-                  />
                   {dropSegments.length > 1 && (
                     <TouchableOpacity
                       style={styles.rpDeleteSegBtn}
@@ -838,14 +852,35 @@ export default function CreateWorkoutScreen() {
                   )}
                 </View>
 
+                <View style={[styles.rpSegmentRow, { marginTop: 8, gap: 8 }]}>
+                  <Text style={styles.dsDropLabel}>Poids (kg) :</Text>
+                  <TextInput
+                    style={styles.rpSmallInput}
+                    value={seg.weight !== undefined ? String(seg.weight) : ''}
+                    onChangeText={(val) => handleUpdateDropSegment(idx, 'weight', val)}
+                    placeholder="ex: 40"
+                    placeholderTextColor="#888"
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.rpSegmentLabel}>Reps :</Text>
+                  <TextInput
+                    style={styles.rpSmallInput}
+                    value={seg.reps}
+                    onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
+                    placeholder="ex: 8-10"
+                    placeholderTextColor="#888"
+                  />
+                </View>
+
                 {idx > 0 && (
                   <View style={[styles.rpSegmentRow, { marginTop: 8 }]}>
-                    <Text style={styles.dsDropLabel}>Baisse de poids :</Text>
+                    <Text style={styles.dsDropLabel}>Baisse (optionnel) :</Text>
                     <TextInput
                       style={styles.rpSmallInput}
                       value={seg.drop}
                       onChangeText={(val) => handleUpdateDropSegment(idx, 'drop', val)}
                       placeholder="ex: -20%"
+                      placeholderTextColor="#888"
                     />
                   </View>
                 )}
@@ -989,7 +1024,7 @@ const styles = StyleSheet.create({
   rpSegmentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rpSegmentLabel: { fontSize: 14, fontWeight: 'bold', color: '#1b2a47', flex: 1 },
   rpRestLabel: { fontSize: 13, fontWeight: 'bold', color: '#ff9800', flex: 1 },
-  rpSmallInput: { backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, fontSize: 15, fontWeight: 'bold', color: '#111111', minWidth: 80, textAlign: 'center' },
+  rpSmallInput: { backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 8, fontSize: 15, fontWeight: 'bold', color: '#111111', minWidth: 54, maxWidth: 85, textAlign: 'center' },
   rpDeleteSegBtn: { marginLeft: 8, backgroundColor: '#ffe6e6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   rpDeleteSegTxt: { color: '#ff4d4d', fontWeight: 'bold', fontSize: 14 },
   addRpSegBtn: { backgroundColor: '#0bc0af', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 4, marginBottom: 10 },
