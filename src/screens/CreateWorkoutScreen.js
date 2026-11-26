@@ -60,6 +60,8 @@ export default function CreateWorkoutScreen() {
   const [newAddedDsSetsInput, setNewAddedDsSetsInput] = useState('1');
   const [newPreSetsInput, setNewPreSetsInput] = useState('');
   const [newRpSetsInput, setNewRpSetsInput] = useState('2');
+  const [newRpWeightInput, setNewRpWeightInput] = useState('');
+  const [rpWeightManuallyEdited, setRpWeightManuallyEdited] = useState(false);
   const [rpSegments, setRpSegments] = useState(DEFAULT_RP_SEGMENTS);
   const [newDsSetsInput, setNewDsSetsInput] = useState('2');
   const [dropSegments, setDropSegments] = useState(DEFAULT_DROP_SEGMENTS);
@@ -187,11 +189,24 @@ export default function CreateWorkoutScreen() {
     setDropSegments(updated);
   };
 
+  const getLastNormalSetWeight = (weightsArr = newSetWeights, setsStr = newSetsInput) => {
+    const normalCount = parseSetsWithRestPause(setsStr).normalReps.length;
+    for (let i = normalCount - 1; i >= 0; i--) {
+      const w = String(weightsArr[i] || '').trim();
+      if (w !== '') return w;
+    }
+    return '';
+  };
+
   const handleUpdateSetWeight = (index, value) => {
     setNewSetWeights(prev => {
       const next = [...prev];
       while (next.length <= index) next.push('');
       next[index] = value;
+      if (!rpWeightManuallyEdited) {
+        const lastW = getLastNormalSetWeight(next, newSetsInput);
+        setNewRpWeightInput(lastW);
+      }
       return next;
     });
   };
@@ -242,7 +257,11 @@ export default function CreateWorkoutScreen() {
         ...preNormalReps.map(() => 'reps'),
         ...Array(rpSetsCount).fill('rest-pause')
       ];
-      const cleanedTargetWeights = Array.from({ length: totalSetsCount }, (_, i) => String(newSetWeights[i] || '').trim());
+      const rpWeightTrimmed = (newRpWeightInput || '').trim();
+      const cleanedTargetWeights = Array.from({ length: totalSetsCount }, (_, i) => {
+        if (i < preNormalReps.length) return String(newSetWeights[i] || '').trim();
+        return rpWeightTrimmed || String(newSetWeights[i] || '').trim();
+      });
       const hasAnyWeight = cleanedTargetWeights.some(w => w !== '');
       const firstConfiguredWeight = cleanedTargetWeights.find(w => w !== '');
       newEx = {
@@ -252,6 +271,7 @@ export default function CreateWorkoutScreen() {
         sets: totalSetsCount,
         ...(preNormalReps.length > 0 ? { normalTargetReps: preNormalReps } : {}),
         restPauseSets: rpSetsCount,
+        ...(rpWeightTrimmed !== '' ? { restPauseWeight: rpWeightTrimmed } : {}),
         setTypes,
         restPauseSegments: cleanedSegments,
         targetReps: [
@@ -336,9 +356,15 @@ export default function CreateWorkoutScreen() {
         resolvedType = 'drop-set';
       }
 
+      const rpWeightTrimmed = (newRpWeightInput || '').trim();
       const cleanedTargetWeights = Array.from(
         { length: totalSetsCount },
-        (_, i) => String(newSetWeights[i] || '').trim()
+        (_, i) => {
+          if (setTypes[i] === 'rest-pause' && rpWeightTrimmed !== '') {
+            return rpWeightTrimmed;
+          }
+          return String(newSetWeights[i] || '').trim();
+        }
       );
       const hasAnyWeight = cleanedTargetWeights.some(w => w !== '');
       const firstConfiguredWeight = cleanedTargetWeights.find(w => w !== '');
@@ -354,6 +380,7 @@ export default function CreateWorkoutScreen() {
         setTypes,
         ...(addedRpCount > 0 ? {
           restPauseSets: addedRpCount,
+          ...(rpWeightTrimmed !== '' ? { restPauseWeight: rpWeightTrimmed } : {}),
           restPauseSegments: cleanedSegments
         } : {}),
         ...(addedDsCount > 0 ? {
@@ -392,6 +419,8 @@ export default function CreateWorkoutScreen() {
     setNewAddedDsSetsInput('1');
     setNewPreSetsInput('');
     setNewRpSetsInput('2');
+    setNewRpWeightInput('');
+    setRpWeightManuallyEdited(false);
     setRpSegments(DEFAULT_RP_SEGMENTS);
     setNewDsSetsInput('2');
     setDropSegments(DEFAULT_DROP_SEGMENTS);
@@ -415,6 +444,11 @@ export default function CreateWorkoutScreen() {
       setHasAddedDs(false);
     } else if (ex.type === 'rest-pause') {
       setNewRpSetsInput(String(ex.sets || 2));
+      setNewRpWeightInput(
+        ex.restPauseWeight !== undefined
+          ? String(ex.restPauseWeight)
+          : (Array.isArray(ex.targetWeights) && ex.targetWeights[0] ? String(ex.targetWeights[0]) : '')
+      );
       setHasAddedRp(false);
       setHasAddedDs(false);
       setRpSegments(
@@ -450,6 +484,14 @@ export default function CreateWorkoutScreen() {
       if (rpCount > 0) {
         setHasAddedRp(true);
         setNewAddedRpSetsInput(String(rpCount));
+        const rpIdx = Array.isArray(ex.setTypes) ? ex.setTypes.indexOf('rest-pause') : -1;
+        setNewRpWeightInput(
+          ex.restPauseWeight !== undefined
+            ? String(ex.restPauseWeight)
+            : (rpIdx >= 0 && Array.isArray(ex.targetWeights) && ex.targetWeights[rpIdx]
+                ? String(ex.targetWeights[rpIdx])
+                : '')
+        );
         setRpSegments(
           ex.restPauseSegments && ex.restPauseSegments.length > 0
             ? ex.restPauseSegments
@@ -458,6 +500,7 @@ export default function CreateWorkoutScreen() {
       } else {
         setHasAddedRp(false);
         setNewAddedRpSetsInput('1');
+        setNewRpWeightInput('');
       }
       if (dsCount > 0) {
         setHasAddedDs(true);
@@ -614,6 +657,10 @@ export default function CreateWorkoutScreen() {
                   onPress={() => {
                     setHasAddedRp(true);
                     setNewAddedRpSetsInput('1');
+                    if (!rpWeightManuallyEdited) {
+                      const lastW = getLastNormalSetWeight();
+                      if (lastW !== '') setNewRpWeightInput(lastW);
+                    }
                   }}
                 >
                   <Text style={styles.addRpToSetsTxt}>+ SÉRIE REST-PAUSE</Text>
@@ -663,6 +710,19 @@ export default function CreateWorkoutScreen() {
                     />
                   </>
                 )}
+
+                <Text style={styles.label}>Poids pour toute la séquence Rest-Pause (kg, optionnel)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newRpWeightInput}
+                  onChangeText={(val) => {
+                    setRpWeightManuallyEdited(true);
+                    setNewRpWeightInput(val);
+                  }}
+                  placeholder="ex: 35"
+                  placeholderTextColor="#888"
+                  keyboardType="numeric"
+                />
 
                 <Text style={styles.label}>Séquence Rest-Pause (Répétitions & Repos entre elles)</Text>
                 {rpSegments.map((seg, idx) => (
@@ -822,6 +882,19 @@ export default function CreateWorkoutScreen() {
               keyboardType="numeric"
             />
 
+            <Text style={styles.label}>Poids pour toute la séquence Rest-Pause (kg, optionnel)</Text>
+            <TextInput
+              style={styles.input}
+              value={newRpWeightInput}
+              onChangeText={(val) => {
+                setRpWeightManuallyEdited(true);
+                setNewRpWeightInput(val);
+              }}
+              placeholder="ex: 35"
+              placeholderTextColor="#888"
+              keyboardType="numeric"
+            />
+
             <Text style={styles.label}>Séquence Rest-Pause (Répétitions & Repos entre elles)</Text>
             {rpSegments.map((seg, idx) => (
               <View key={idx} style={styles.rpSegmentCard}>
@@ -863,7 +936,7 @@ export default function CreateWorkoutScreen() {
 
             <View style={styles.rpPreviewBox}>
               <Text style={styles.rpPreviewTxt}>
-                {newRpSetsInput || '2'} séries de rest-pause = {newExerciseName || 'Exercice'} : {formatRestPauseSegments(rpSegments)}
+                {newRpSetsInput || '2'} séries de rest-pause{newRpWeightInput.trim() !== '' ? ` @ ${newRpWeightInput.trim()} kg` : ''} = {newExerciseName || 'Exercice'} : {formatRestPauseSegments(rpSegments)}
               </Text>
             </View>
           </View>
@@ -987,7 +1060,7 @@ export default function CreateWorkoutScreen() {
                 <Text style={styles.exDetails}>⏱ {Math.floor((ex.durationSeconds || 0)/60)}m {(ex.durationSeconds || 0)%60}s • {ex.restTime || 60}s Rest</Text>
               ) : ex.type === 'rest-pause' ? (
                 <Text style={styles.exDetails}>
-                  🔥 {ex.sets} séries de rest-pause : {formatRestPauseSegments(ex.restPauseSegments)} • {ex.restTime || 60}s Rest
+                  🔥 {ex.sets} séries de rest-pause{ex.restPauseWeight ? ` @ ${ex.restPauseWeight} kg` : ''} : {formatRestPauseSegments(ex.restPauseSegments)} • {ex.restTime || 60}s Rest
                 </Text>
               ) : ex.type === 'drop-set' ? (
                 <Text style={styles.exDetails}>
