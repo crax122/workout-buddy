@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { saveTemplate, getHistory, enrichExercisesWithHistory, saveExerciseNote } from '../services/db';
@@ -68,6 +68,8 @@ export default function CreateWorkoutScreen() {
   const [newRestInput, setNewRestInput] = useState('60');
   const [newNoteInput, setNewNoteInput] = useState('');
   const [editIndex, setEditIndex] = useState(null);
+  const scrollViewRef = useRef(null);
+  const [addSectionY, setAddSectionY] = useState(0);
 
   useEffect(() => {
     if (route.params?.editWorkout) {
@@ -516,6 +518,14 @@ export default function CreateWorkoutScreen() {
       }
     }
     setEditIndex(index);
+    setTimeout(() => {
+      if (scrollViewRef.current && scrollViewRef.current.scrollTo) {
+        scrollViewRef.current.scrollTo({
+          y: addSectionY > 0 ? Math.max(0, addSectionY - 10) : 0,
+          animated: true
+        });
+      }
+    }, 50);
   };
 
   const handleRemoveExercise = (id) => {
@@ -644,7 +654,7 @@ export default function CreateWorkoutScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView ref={scrollViewRef} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Create Workout</Text>
       </View>
@@ -657,8 +667,13 @@ export default function CreateWorkoutScreen() {
         placeholder="e.g. Leg Day"
       />
 
-      <View style={styles.addSection}>
-        <Text style={styles.sectionTitle}>Add Exercise</Text>
+      <View
+        style={styles.addSection}
+        onLayout={(e) => setAddSectionY(e.nativeEvent.layout.y)}
+      >
+        <Text style={styles.sectionTitle}>
+          {editIndex !== null ? "✏️ Modifier l'exercice" : "Add Exercise"}
+        </Text>
         <TextInput 
           style={styles.input} 
           value={newExerciseName} 
