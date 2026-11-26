@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { getHistory } from '../services/db';
+import { getHistory, deleteHistoryItem, deleteExerciseSessionFromHistory } from '../services/db';
 import { analyzeProgression } from '../services/progression';
 import ProgressionChart from '../components/ProgressionChart';
 
@@ -33,6 +33,7 @@ export default function ProgressionScreen() {
   const [selectedWorkout, setSelectedWorkout] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedKeys, setExpandedKeys] = useState({});
+  const [showManageSessions, setShowManageSessions] = useState(false);
 
   useEffect(() => {
     if (isFocused) {
@@ -46,6 +47,48 @@ export default function ProgressionScreen() {
     setHistory(h || []);
     setLoading(false);
   };
+
+  const handleDeleteExerciseSession = async (session, exerciseName) => {
+    const confirmed =
+      typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`Supprimer la séance du ${session.date} (${session.workoutName}) pour ${exerciseName} ?`)
+        : true;
+    if (!confirmed) return;
+
+    const ok = await deleteExerciseSessionFromHistory(
+      session.historyId,
+      exerciseName,
+      session.date,
+      session.workoutName
+    );
+    if (ok) {
+      await loadData();
+    } else if (typeof window !== 'undefined' && window.alert) {
+      window.alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleDeleteWorkoutSession = async (historyItem) => {
+    const confirmed =
+      typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`Supprimer toute la séance "${historyItem.name}" du ${historyItem.date} ?`)
+        : true;
+    if (!confirmed) return;
+
+    const ok = await deleteHistoryItem(historyItem);
+    if (ok) {
+      await loadData();
+    } else if (typeof window !== 'undefined' && window.alert) {
+      window.alert('Erreur lors de la suppression');
+    }
+  };
+
+  const filteredHistoryNewestFirst = useMemo(() => {
+    const list = (history || []).filter(h =>
+      selectedWorkout === 'ALL' ? true : h && h.name === selectedWorkout
+    );
+    return [...list].reverse();
+  }, [history, selectedWorkout]);
 
   const analysis = useMemo(() => {
     return analyzeProgression(history, selectedWorkout);
@@ -108,6 +151,40 @@ export default function ProgressionScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
+
+      {filteredHistoryNewestFirst.length > 0 && (
+        <View style={styles.manageSection}>
+          <TouchableOpacity
+            style={styles.manageToggleBtn}
+            onPress={() => setShowManageSessions(!showManageSessions)}
+          >
+            <Text style={styles.manageToggleTxt}>
+              {showManageSessions ? '▲ Masquer la liste des séances' : `🗑️ Gérer / Supprimer des séances (${filteredHistoryNewestFirst.length})`}
+            </Text>
+          </TouchableOpacity>
+
+          {showManageSessions && (
+            <View style={styles.manageList}>
+              {filteredHistoryNewestFirst.map((hItem, idx) => (
+                <View key={hItem.id || `${hItem.date}-${idx}`} style={styles.manageRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.manageTitle}>{hItem.date} • {hItem.name}</Text>
+                    <Text style={styles.manageSub}>
+                      Vol: {hItem.volume || 0} kg • {(hItem.exercises || []).length} exercice(s)
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDeleteWorkoutSession(hItem)}
+                  >
+                    <Text style={styles.deleteBtnTxt}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {loading ? (
         <ActivityIndicator size="large" color="#0bc0af" style={{ marginTop: 30 }} />
@@ -178,6 +255,12 @@ export default function ProgressionScreen() {
                           <Text style={styles.sessionDate}>
                             #{sessionNum} • {s.date} ({s.workoutName})
                           </Text>
+                          <TouchableOpacity
+                            style={styles.sessionDeleteBtn}
+                            onPress={() => handleDeleteExerciseSession(s, ex.name)}
+                          >
+                            <Text style={styles.sessionDeleteTxt}>🗑️</Text>
+                          </TouchableOpacity>
                         </View>
 
                         {ex.isTime ? (
@@ -227,7 +310,16 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: '#673ab7', borderColor: '#673ab7' },
   filterChipTxt: { fontSize: 13, fontWeight: 'bold', color: '#555' },
   filterChipTxtActive: { color: '#fff' },
-  searchInput: { backgroundColor: '#fff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', fontSize: 15, color: '#111111', marginBottom: 14 },
+  searchInput: { backgroundColor: '#fff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', fontSize: 15, color: '#111111', marginBottom: 10 },
+  manageSection: { marginBottom: 14 },
+  manageToggleBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ef9a9a', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
+  manageToggleTxt: { color: '#c62828', fontSize: 13, fontWeight: 'bold' },
+  manageList: { backgroundColor: '#fff', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#eee' },
+  manageRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  manageTitle: { fontSize: 13, fontWeight: 'bold', color: '#1b2a47' },
+  manageSub: { fontSize: 12, color: '#666', marginTop: 2 },
+  deleteBtn: { backgroundColor: '#ffebee', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, marginLeft: 8 },
+  deleteBtnTxt: { fontSize: 15 },
   emptyCard: { backgroundColor: '#fff', padding: 20, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   emptyTxt: { fontSize: 14, color: '#666', textAlign: 'center', fontStyle: 'italic' },
   exCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 14, elevation: 2 },
@@ -247,6 +339,8 @@ const styles = StyleSheet.create({
   sessionRow: { backgroundColor: '#fafafa', padding: 10, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#eee' },
   sessionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   sessionDate: { fontSize: 12, fontWeight: 'bold', color: '#1b2a47', flex: 1 },
+  sessionDeleteBtn: { backgroundColor: '#ffebee', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginLeft: 8 },
+  sessionDeleteTxt: { fontSize: 13 },
   sessionSets: { fontSize: 13, color: '#333', fontWeight: '600', marginBottom: 4 },
   sessionDetail: { fontSize: 13, color: '#333', fontWeight: 'bold' },
   sessionBottom: { marginTop: 2 },

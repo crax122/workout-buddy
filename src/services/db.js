@@ -412,6 +412,69 @@ export const deleteHistoryItem = async (historyItemToDelete) => {
   }
 };
 
+export const deleteExerciseSessionFromHistory = async (historyId, exerciseName, sessionDate, workoutName) => {
+  try {
+    const ref = await ensureUserDoc();
+    const snap = await getDoc(ref);
+    const data = snap.data() || {};
+    let history = data.history || [];
+    const normTarget = (exerciseName || '').trim().toLowerCase();
+
+    history = history
+      .map((item, idx) => {
+        const matchesId = item.id && historyId && item.id === historyId;
+        const matchesFallback =
+          !item.id &&
+          String(idx) === String(historyId) &&
+          item.date === sessionDate &&
+          item.name === workoutName;
+        if (!matchesId && !matchesFallback) return item;
+
+        const remainingExercises = (item.exercises || []).filter(
+          ex => (ex?.name || '').trim().toLowerCase() !== normTarget
+        );
+
+        if (remainingExercises.length === 0) {
+          return null;
+        }
+
+        // Recompute session volume from remaining exercises
+        let newVol = 0;
+        remainingExercises.forEach(ex => {
+          if (ex.type !== 'time' && Array.isArray(ex.loggedSets)) {
+            ex.loggedSets.forEach(s => {
+              if (s.isDropSet && Array.isArray(s.drops)) {
+                s.drops.forEach(d => {
+                  newVol += (parseFloat(d.weight) || 0) * (parseFloat(d.reps) || 0);
+                });
+              } else {
+                newVol += (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 0);
+              }
+            });
+          }
+        });
+
+        return {
+          ...item,
+          exercises: remainingExercises,
+          volume: Math.round(newVol * 10) / 10
+        };
+      })
+      .filter(Boolean);
+
+    const templates = syncTemplatesWithHistory(data.templates || [], history);
+
+    await updateDoc(ref, {
+      history: cleanData(history),
+      templates: cleanData(templates)
+    });
+    return true;
+  } catch (error) {
+    console.error("Error deleting exercise session from history:", error);
+    return false;
+  }
+};
+
 export const updateHistoryItem = async (updatedHistoryItem) => {
   try {
     if (updatedHistoryItem && Array.isArray(updatedHistoryItem.exercises)) {
