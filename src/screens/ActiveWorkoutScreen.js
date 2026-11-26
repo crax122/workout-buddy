@@ -46,6 +46,8 @@ export default function ActiveWorkoutScreen() {
             ...ex,
             lastWeight: enr.lastWeight ?? ex.lastWeight,
             previousLoggedSets: enr.previousLoggedSets ?? ex.previousLoggedSets,
+            matchedFromSameWorkout: enr.matchedFromSameWorkout ?? ex.matchedFromSameWorkout,
+            lastLoggedAt: enr.lastLoggedAt ?? ex.lastLoggedAt,
             prev: enr.prev ?? ex.prev,
             notes: shouldTakeEnrichedNote ? (enr.notes ?? ex.notes ?? '') : (ex.notes ?? ''),
             ...(shouldTakeEnrichedNote && enr.noteUpdatedAt ? { noteUpdatedAt: enr.noteUpdatedAt } : {})
@@ -71,7 +73,7 @@ export default function ActiveWorkoutScreen() {
     };
     const updated = exercises.map((ex, idx) => (idx === activeExIndex ? updatedEx : ex));
     setExercises(updated);
-    saveLocalWeights([updatedEx]);
+    saveLocalWeights([updatedEx], workoutName);
 
     if (noteTimeoutRef.current) clearTimeout(noteTimeoutRef.current);
     noteTimeoutRef.current = setTimeout(() => {
@@ -83,6 +85,20 @@ export default function ActiveWorkoutScreen() {
     if (!ex) return '0';
     const setIdx = ex.completedSets || 0;
     const prevSets = ex.previousLoggedSets || [];
+    const configuredWeight =
+      Array.isArray(ex.targetWeights) &&
+      ex.targetWeights[setIdx] !== undefined &&
+      String(ex.targetWeights[setIdx]).trim() !== ''
+        ? String(ex.targetWeights[setIdx]).trim()
+        : null;
+    const preferConfiguredTarget =
+      configuredWeight !== null &&
+      (!ex.matchedFromSameWorkout || (ex.targetWeightsUpdatedAt || 0) > (ex.lastLoggedAt || 0));
+
+    if (preferConfiguredTarget) {
+      return configuredWeight;
+    }
+
     if (ex.loggedSets && ex.loggedSets.length > 0) {
       const lastLogged = ex.loggedSets[ex.loggedSets.length - 1];
       if (
@@ -93,10 +109,16 @@ export default function ActiveWorkoutScreen() {
       ) {
         return String(prevSets[setIdx].weight);
       }
+      if (configuredWeight !== null) {
+        return configuredWeight;
+      }
       return String(lastLogged.weight);
     }
     if (prevSets.length > 0 && prevSets[0].weight !== undefined) {
       return String(prevSets[0].weight);
+    }
+    if (configuredWeight !== null) {
+      return configuredWeight;
     }
     if (ex.lastWeight !== undefined && ex.lastWeight !== null && ex.lastWeight !== '') {
       return String(ex.lastWeight);
@@ -115,7 +137,7 @@ export default function ActiveWorkoutScreen() {
         completedSets: newCompletedSets,
         completed: newCompletedSets >= ex.sets
       };
-      saveLocalWeights([updatedEx]);
+      saveLocalWeights([updatedEx], workoutName);
       return updatedEx;
     });
     
@@ -267,7 +289,7 @@ export default function ActiveWorkoutScreen() {
       return ex;
     });
 
-    saveLocalWeights(exercisesToSave);
+    saveLocalWeights(exercisesToSave, workoutName);
 
     navigation.navigate('Summary', { 
       workoutName, 

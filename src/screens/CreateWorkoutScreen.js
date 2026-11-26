@@ -53,6 +53,7 @@ export default function CreateWorkoutScreen() {
   const [newExType, setNewExType] = useState('reps');
   const [newTimeInput, setNewTimeInput] = useState('5');
   const [newSetsInput, setNewSetsInput] = useState('3x10');
+  const [newSetWeights, setNewSetWeights] = useState([]);
   const [hasAddedRp, setHasAddedRp] = useState(false);
   const [newAddedRpSetsInput, setNewAddedRpSetsInput] = useState('1');
   const [hasAddedDs, setHasAddedDs] = useState(false);
@@ -186,6 +187,15 @@ export default function CreateWorkoutScreen() {
     setDropSegments(updated);
   };
 
+  const handleUpdateSetWeight = (index, value) => {
+    setNewSetWeights(prev => {
+      const next = [...prev];
+      while (next.length <= index) next.push('');
+      next[index] = value;
+      return next;
+    });
+  };
+
   const handleAddExercise = () => {
     if (!newExerciseName.trim()) {
       Alert.alert('Error', 'Please enter an exercise name');
@@ -232,6 +242,9 @@ export default function CreateWorkoutScreen() {
         ...preNormalReps.map(() => 'reps'),
         ...Array(rpSetsCount).fill('rest-pause')
       ];
+      const cleanedTargetWeights = Array.from({ length: totalSetsCount }, (_, i) => String(newSetWeights[i] || '').trim());
+      const hasAnyWeight = cleanedTargetWeights.some(w => w !== '');
+      const firstConfiguredWeight = cleanedTargetWeights.find(w => w !== '');
       newEx = {
         id: prevEx ? prevEx.id : now.toString(),
         name: newExerciseName.trim(),
@@ -245,10 +258,11 @@ export default function CreateWorkoutScreen() {
           ...preNormalReps,
           ...Array(rpSetsCount).fill(cleanedSegments[0]?.reps || '8')
         ],
+        ...(hasAnyWeight ? { targetWeights: cleanedTargetWeights, targetWeightsUpdatedAt: now } : {}),
         restTime: parseInt(newRestInput) || 60,
         completedSets: 0,
         prev: prevEx ? prevEx.prev : (enrichedDraft?.prev || 'No previous data'),
-        ...(prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {})),
+        ...(firstConfiguredWeight !== undefined ? { lastWeight: firstConfiguredWeight } : (prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {}))),
         ...(prevEx?.previousLoggedSets !== undefined ? { previousLoggedSets: prevEx.previousLoggedSets } : (enrichedDraft?.previousLoggedSets !== undefined ? { previousLoggedSets: enrichedDraft.previousLoggedSets } : {})),
         notes: resolvedNote,
         ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
@@ -322,6 +336,13 @@ export default function CreateWorkoutScreen() {
         resolvedType = 'drop-set';
       }
 
+      const cleanedTargetWeights = Array.from(
+        { length: totalSetsCount },
+        (_, i) => String(newSetWeights[i] || '').trim()
+      );
+      const hasAnyWeight = cleanedTargetWeights.some(w => w !== '');
+      const firstConfiguredWeight = cleanedTargetWeights.find(w => w !== '');
+
       newEx = {
         id: prevEx ? prevEx.id : now.toString(),
         name: newExerciseName.trim(),
@@ -329,6 +350,7 @@ export default function CreateWorkoutScreen() {
         sets: totalSetsCount,
         normalTargetReps: parsedTargetSets,
         targetReps: combinedTargetReps,
+        ...(hasAnyWeight ? { targetWeights: cleanedTargetWeights, targetWeightsUpdatedAt: now } : {}),
         setTypes,
         ...(addedRpCount > 0 ? {
           restPauseSets: addedRpCount,
@@ -341,7 +363,7 @@ export default function CreateWorkoutScreen() {
         restTime: parseInt(newRestInput) || 60,
         completedSets: 0,
         prev: prevEx ? prevEx.prev : (enrichedDraft?.prev || 'No previous data'),
-        ...(prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {})),
+        ...(firstConfiguredWeight !== undefined ? { lastWeight: firstConfiguredWeight } : (prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {}))),
         ...(prevEx?.previousLoggedSets !== undefined ? { previousLoggedSets: prevEx.previousLoggedSets } : (enrichedDraft?.previousLoggedSets !== undefined ? { previousLoggedSets: enrichedDraft.previousLoggedSets } : {})),
         notes: resolvedNote,
         ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
@@ -363,6 +385,7 @@ export default function CreateWorkoutScreen() {
     }
     setNewExerciseName('');
     setNewSetsInput('3x10');
+    setNewSetWeights([]);
     setHasAddedRp(false);
     setNewAddedRpSetsInput('1');
     setHasAddedDs(false);
@@ -384,6 +407,7 @@ export default function CreateWorkoutScreen() {
     setNewRestInput(String(ex.restTime || 60));
     setNewExType(ex.type || 'reps');
     setNewNoteInput(ex.notes || '');
+    setNewSetWeights(Array.isArray(ex.targetWeights) ? ex.targetWeights.map(w => String(w || '')) : []);
     
     if (ex.type === 'time') {
       setNewTimeInput(String((ex.durationSeconds || 300) / 60));
@@ -564,6 +588,25 @@ export default function CreateWorkoutScreen() {
               onChangeText={setNewSetsInput} 
               placeholder="e.g. 10,10,5 or 3x10"
             />
+            {parseSetsWithRestPause(newSetsInput).normalReps.length > 0 && (
+              <View style={styles.setWeightsBox}>
+                <Text style={styles.label}>Poids par série (kg, optionnel) :</Text>
+                {parseSetsWithRestPause(newSetsInput).normalReps.map((repCount, sIdx) => (
+                  <View key={sIdx} style={styles.setWeightRow}>
+                    <Text style={styles.setWeightLabel}>Série {sIdx + 1} ({repCount} reps) :</Text>
+                    <TextInput
+                      style={styles.rpSmallInput}
+                      value={newSetWeights[sIdx] !== undefined ? String(newSetWeights[sIdx]) : ''}
+                      onChangeText={(val) => handleUpdateSetWeight(sIdx, val)}
+                      placeholder="ex: 40"
+                      placeholderTextColor="#888"
+                      keyboardType="numeric"
+                    />
+                    <Text style={styles.setWeightUnit}>kg</Text>
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
               {!(hasAddedRp || parseSetsWithRestPause(newSetsInput).inlineRpCount > 0) && (
                 <TouchableOpacity
@@ -963,7 +1006,17 @@ export default function CreateWorkoutScreen() {
                   )} • {ex.restTime || 60}s Rest
                 </Text>
               ) : (
-                <Text style={styles.exDetails}>{ex.targetReps ? ex.targetReps.join(', ') : ''} Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest</Text>
+                <Text style={styles.exDetails}>
+                  {ex.targetReps
+                    ? ex.targetReps
+                        .map((r, sIdx) => {
+                          const tw = Array.isArray(ex.targetWeights) ? ex.targetWeights[sIdx] : '';
+                          return tw && String(tw).trim() !== '' ? `${r} (${tw}kg)` : String(r);
+                        })
+                        .join(', ')
+                    : ''}{' '}
+                  Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest
+                </Text>
               )}
               <TextInput
                 style={styles.inlineNoteInput}
@@ -1016,6 +1069,10 @@ const styles = StyleSheet.create({
   addRpToSetsBtn: { backgroundColor: '#ff9800', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
   addDsToSetsBtn: { backgroundColor: '#7b1fa2', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
   addRpToSetsTxt: { color: '#fff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
+  setWeightsBox: { backgroundColor: '#fff', padding: 10, borderRadius: 10, marginBottom: 12, borderWidth: 1, borderColor: '#ccebe8' },
+  setWeightRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 8 },
+  setWeightLabel: { fontSize: 14, fontWeight: 'bold', color: '#1b2a47', flex: 1 },
+  setWeightUnit: { fontSize: 14, fontWeight: 'bold', color: '#555' },
   rpBuilderBox: { marginBottom: 10 },
   dsBuilderBox: { marginBottom: 10, backgroundColor: '#f3e5f5', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ce93d8' },
   dsDropLabel: { fontSize: 13, fontWeight: 'bold', color: '#7b1fa2', flex: 1 },

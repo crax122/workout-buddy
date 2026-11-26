@@ -37,23 +37,37 @@ export const getLocalWeightsMap = () => {
   }
 };
 
-export const saveLocalWeights = (exercises) => {
+export const saveLocalWeights = (exercises, workoutName = null) => {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;
     const map = getLocalWeightsMap();
+    const normWorkout = workoutName ? String(workoutName).trim().toLowerCase() : null;
     (exercises || []).forEach(ex => {
       if (!ex) return;
       const normName = (ex.name || '').trim().toLowerCase();
+      const workoutNameKey = normWorkout && normName ? `workout:${normWorkout}::name:${normName}` : null;
       const idKey = ex.id ? `id:${ex.id}` : null;
       const nameKey = normName ? `name:${normName}` : null;
 
-      const existing = (idKey && map[idKey]) || (nameKey && map[nameKey]) || {};
+      const existing =
+        (workoutNameKey && map[workoutNameKey]) ||
+        (idKey && map[idKey]) ||
+        (nameKey && map[nameKey]) ||
+        {};
       const updated = { ...existing };
 
       if (ex.loggedSets && ex.loggedSets.length > 0) {
         updated.lastWeight = String(ex.loggedSets[0].weight ?? '0');
         updated.previousLoggedSets = ex.loggedSets;
         updated.prev = formatPrevSets(ex.loggedSets);
+        updated.lastLoggedAt = Date.now();
+      } else if (Array.isArray(ex.targetWeights) && ex.targetWeights.some(w => String(w || '').trim() !== '')) {
+        const firstW = ex.targetWeights.find(w => String(w || '').trim() !== '');
+        if (!updated.lastWeight || (ex.targetWeightsUpdatedAt || 0) >= (updated.lastLoggedAt || 0)) {
+          updated.lastWeight = String(firstW);
+          updated.targetWeights = ex.targetWeights;
+          updated.targetWeightsUpdatedAt = ex.targetWeightsUpdatedAt || Date.now();
+        }
       }
 
       if (typeof ex.notes === 'string') {
@@ -68,6 +82,7 @@ export const saveLocalWeights = (exercises) => {
       }
 
       if (Object.keys(updated).length > 0) {
+        if (workoutNameKey) map[workoutNameKey] = updated;
         if (idKey) map[idKey] = updated;
         if (nameKey) map[nameKey] = updated;
       }
@@ -127,20 +142,21 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
   // Populate local cache from history (oldest to newest so newest wins)
   (history || []).forEach(h => {
     if (h && Array.isArray(h.exercises)) {
-      saveLocalWeights(h.exercises);
+      saveLocalWeights(h.exercises, h.name || null);
     }
   });
 
   const localMap = getLocalWeightsMap();
+  const normWorkout = workoutName ? String(workoutName).trim().toLowerCase() : null;
 
   return (exercises || []).map(ex => {
     if (!ex) return ex;
 
     const normName = (ex.name || '').trim().toLowerCase();
-    const localEntry =
-      (ex.id && localMap[`id:${ex.id}`]) ||
-      (normName && localMap[`name:${normName}`]) ||
-      null;
+    const workoutScopedEntry = normWorkout && normName ? localMap[`workout:${normWorkout}::name:${normName}`] : null;
+    const idScopedEntry = ex.id ? localMap[`id:${ex.id}`] : null;
+    const nameScopedEntry = normName ? localMap[`name:${normName}`] : null;
+    const localEntry = workoutScopedEntry || idScopedEntry || nameScopedEntry || null;
 
     // Find latest note for this exercise (works for both 'reps' and 'time' exercises)
     let resolvedNote = typeof ex.notes === 'string' ? ex.notes : '';
@@ -187,6 +203,8 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
     }
 
     let matchedSets = null;
+    let matchedFromSameWorkout = false;
+    let matchedLoggedAt = 0;
 
     // 1. Search history from newest to oldest within the same workout name first
     if (workoutName && Array.isArray(history)) {
@@ -203,14 +221,19 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
           );
           if (found) {
             matchedSets = found.loggedSets;
+            matchedFromSameWorkout = true;
+            matchedLoggedAt = parseInt(h.id, 10) || (i + 1);
             break;
           }
         }
       }
     }
 
-    // 2. Fallback: search all history from newest to oldest for matching exercise ID or name
-    if (!matchedSets && Array.isArray(history)) {
+    // 2. Fallback: search all history from newest to oldest ONLY if no targetWeights are configured for this exercise
+    const hasConfiguredTargetWeights =
+      Array.isArray(ex.targetWeights) && ex.targetWeights.some(w => String(w || '').trim() !== '');
+
+    if (!matchedSets && !hasConfiguredTargetWeights && Array.isArray(history)) {
       for (let i = history.length - 1; i >= 0; i--) {
         const h = history[i];
         if (h && Array.isArray(h.exercises)) {
@@ -224,6 +247,8 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
           );
           if (found) {
             matchedSets = found.loggedSets;
+            matchedFromSameWorkout = false;
+            matchedLoggedAt = parseInt(h.id, 10) || (i + 1);
             break;
           }
         }
@@ -235,19 +260,27 @@ export const enrichExercisesWithHistory = (exercises, history = [], workoutName 
         ...ex,
         lastWeight: String(matchedSets[0].weight ?? '0'),
         previousLoggedSets: matchedSets,
+        matchedFromSameWorkout,
+        lastLoggedAt: matchedLoggedAt,
         prev: formatPrevSets(matchedSets),
         notes: resolvedNote,
         ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
       };
     }
 
-    // 3. Fallback to template's own stored previousLoggedSets / lastWeight or localMap
-    if (localEntry && localEntry.previousLoggedSets && (!ex.previousLoggedSets || ex.previousLoggedSets.length === 0)) {
+    // 3. Fallback to workout-scoped or id-scoped localMap (do not leak another workout's weights if targetWeights are configured)
+    const safeLocalEntry = hasConfiguredTargetWeights
+      ? (workoutScopedEntry || idScopedEntry)
+      : localEntry;
+
+    if (safeLocalEntry && safeLocalEntry.previousLoggedSets && (!ex.previousLoggedSets || ex.previousLoggedSets.length === 0)) {
       return {
         ...ex,
-        lastWeight: localEntry.lastWeight,
-        previousLoggedSets: localEntry.previousLoggedSets,
-        prev: localEntry.prev,
+        lastWeight: safeLocalEntry.lastWeight,
+        previousLoggedSets: safeLocalEntry.previousLoggedSets,
+        matchedFromSameWorkout: Boolean(workoutScopedEntry),
+        ...(safeLocalEntry.lastLoggedAt ? { lastLoggedAt: safeLocalEntry.lastLoggedAt } : {}),
+        prev: safeLocalEntry.prev,
         notes: resolvedNote,
         ...(resolvedNoteTime ? { noteUpdatedAt: resolvedNoteTime } : {})
       };
@@ -307,7 +340,7 @@ export const getTemplates = async () => {
 export const saveTemplate = async (newTemplate, workoutId = null) => {
   try {
     if (newTemplate && Array.isArray(newTemplate.exercises)) {
-      saveLocalWeights(newTemplate.exercises);
+      saveLocalWeights(newTemplate.exercises, newTemplate.name || null);
     }
     const ref = await ensureUserDoc();
     const snap = await getDoc(ref);
@@ -341,7 +374,7 @@ export const getHistory = async () => {
     const history = snap.data().history || [];
     history.forEach(h => {
       if (h && Array.isArray(h.exercises)) {
-        saveLocalWeights(h.exercises);
+        saveLocalWeights(h.exercises, h.name || null);
       }
     });
     return history;
@@ -354,7 +387,7 @@ export const getHistory = async () => {
 export const saveHistory = async (historyItem) => {
   try {
     if (historyItem && Array.isArray(historyItem.exercises)) {
-      saveLocalWeights(historyItem.exercises);
+      saveLocalWeights(historyItem.exercises, historyItem.name || null);
     }
     const ref = await ensureUserDoc();
     const snap = await getDoc(ref);
