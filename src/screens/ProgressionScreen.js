@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getHistory } from '../services/db';
 import { analyzeProgression } from '../services/progression';
+import ProgressionChart from '../components/ProgressionChart';
 
 const STATUS_META = {
   up: { label: '📈 Progression', bg: '#e8f5e9', color: '#2e7d32', border: '#a5d6a7' },
@@ -197,6 +198,8 @@ export default function ProgressionScreen() {
                   </View>
                 </View>
               )}
+
+              <ProgressionChart exercise={ex} />
 
               {expanded && (
                 <View style={styles.sessionsList}>
