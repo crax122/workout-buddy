@@ -9,6 +9,12 @@ const DEFAULT_RP_SEGMENTS = [
   { reps: '2-3', rest: '' }
 ];
 
+const DEFAULT_DROP_SEGMENTS = [
+  { reps: '8-10', drop: '' },
+  { reps: '8-10', drop: '-20%' },
+  { reps: '10-12', drop: '-20%' }
+];
+
 export const formatRestPauseSegments = (segments) => {
   if (!Array.isArray(segments) || segments.length === 0) return '';
   return segments
@@ -18,6 +24,17 @@ export const formatRestPauseSegments = (segments) => {
         : `${seg.reps} reps`
     )
     .join(' + ');
+};
+
+export const formatDropSetSegments = (segments) => {
+  if (!Array.isArray(segments) || segments.length === 0) return '';
+  return segments
+    .map((seg, i) =>
+      i === 0
+        ? `${seg.reps} reps`
+        : `(${seg.drop || '-20%'}) ${seg.reps} reps`
+    )
+    .join(' → ');
 };
 
 export default function CreateWorkoutScreen() {
@@ -34,9 +51,13 @@ export default function CreateWorkoutScreen() {
   const [newSetsInput, setNewSetsInput] = useState('3x10');
   const [hasAddedRp, setHasAddedRp] = useState(false);
   const [newAddedRpSetsInput, setNewAddedRpSetsInput] = useState('1');
+  const [hasAddedDs, setHasAddedDs] = useState(false);
+  const [newAddedDsSetsInput, setNewAddedDsSetsInput] = useState('1');
   const [newPreSetsInput, setNewPreSetsInput] = useState('');
   const [newRpSetsInput, setNewRpSetsInput] = useState('2');
   const [rpSegments, setRpSegments] = useState(DEFAULT_RP_SEGMENTS);
+  const [newDsSetsInput, setNewDsSetsInput] = useState('2');
+  const [dropSegments, setDropSegments] = useState(DEFAULT_DROP_SEGMENTS);
   const [newRestInput, setNewRestInput] = useState('60');
   const [newNoteInput, setNewNoteInput] = useState('');
   const [editIndex, setEditIndex] = useState(null);
@@ -57,10 +78,11 @@ export default function CreateWorkoutScreen() {
   }, [route.params?.editWorkout]);
 
   const parseSetsWithRestPause = (input) => {
-    if (!input || typeof input !== 'string') return { normalReps: [], inlineRpCount: 0 };
+    if (!input || typeof input !== 'string') return { normalReps: [], inlineRpCount: 0, inlineDsCount: 0 };
     const parts = input.split(/[,+]/).map(s => s.trim()).filter(Boolean);
     const normalReps = [];
     let inlineRpCount = 0;
+    let inlineDsCount = 0;
 
     for (let part of parts) {
       const lower = part.toLowerCase();
@@ -69,6 +91,12 @@ export default function CreateWorkoutScreen() {
         const count = match ? parseInt(match[1], 10) : 1;
         if (!isNaN(count) && count > 0) {
           inlineRpCount += count;
+        }
+      } else if (lower.includes('drop-set') || lower.includes('drop set') || lower.includes('dropset') || /\bds\b/.test(lower)) {
+        const match = lower.match(/(\d+)/);
+        const count = match ? parseInt(match[1], 10) : 1;
+        if (!isNaN(count) && count > 0) {
+          inlineDsCount += count;
         }
       } else if (lower.includes('x')) {
         const [countStr, repsStr] = lower.split('x');
@@ -86,21 +114,31 @@ export default function CreateWorkoutScreen() {
         }
       }
     }
-    return { normalReps, inlineRpCount };
+    return { normalReps, inlineRpCount, inlineDsCount };
   };
 
   const parseSets = (input) => parseSetsWithRestPause(input).normalReps;
 
-  const formatMixedSetsSummary = (normalReps, rpCount, segments) => {
-    const normalChain = (normalReps || []).map(r => `${r} reps`).join(' + ');
-    const rpChain = formatRestPauseSegments(segments);
-    if (normalChain && rpCount > 0) {
-      return `${normalChain} + ${rpCount} rest-pause (${rpChain})`;
+  const formatMixedSetsSummary = (normalReps, rpCount, segments, dsCount = 0, dsSegments = []) => {
+    const parts = [];
+    if (Array.isArray(normalReps) && normalReps.length > 0) {
+      parts.push(normalReps.map(r => `${r} reps`).join(' + '));
     }
     if (rpCount > 0) {
-      return `${rpCount} séries de rest-pause : ${rpChain}`;
+      const rpChain = formatRestPauseSegments(segments);
+      parts.push(`${rpCount} rest-pause (${rpChain})`);
     }
-    return normalChain;
+    if (dsCount > 0) {
+      const dsChain = formatDropSetSegments(dsSegments);
+      parts.push(`${dsCount} drop set (${dsChain})`);
+    }
+    if (parts.length === 1 && rpCount > 0 && (!normalReps || normalReps.length === 0) && dsCount === 0) {
+      return `${rpCount} séries de rest-pause : ${formatRestPauseSegments(segments)}`;
+    }
+    if (parts.length === 1 && dsCount > 0 && (!normalReps || normalReps.length === 0) && rpCount === 0) {
+      return `${dsCount} séries de drop set : ${formatDropSetSegments(dsSegments)}`;
+    }
+    return parts.join(' + ');
   };
 
   const handleAddRpSegment = () => {
@@ -122,6 +160,26 @@ export default function CreateWorkoutScreen() {
       idx === index ? { ...seg, [field]: value } : seg
     );
     setRpSegments(updated);
+  };
+
+  const handleAddDropSegment = () => {
+    setDropSegments([...dropSegments, { reps: '10-12', drop: '-20%' }]);
+  };
+
+  const handleRemoveDropSegment = (index) => {
+    if (dropSegments.length <= 1) return;
+    const filtered = dropSegments.filter((_, idx) => idx !== index);
+    if (filtered.length > 0) {
+      filtered[0] = { ...filtered[0], drop: '' };
+    }
+    setDropSegments(filtered);
+  };
+
+  const handleUpdateDropSegment = (index, field, value) => {
+    const updated = dropSegments.map((seg, idx) =>
+      idx === index ? { ...seg, [field]: value } : seg
+    );
+    setDropSegments(updated);
   };
 
   const handleAddExercise = () => {
@@ -192,14 +250,41 @@ export default function CreateWorkoutScreen() {
         ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
         completed: false
       };
+    } else if (newExType === 'drop-set') {
+      const dsSetsCount = parseInt(newDsSetsInput, 10) || 2;
+      const cleanedDropSegments = dropSegments.map((seg, idx) => ({
+        reps: (seg.reps || '').trim() || '8-10',
+        drop: idx === 0 ? '' : ((seg.drop || '').trim() || '-20%')
+      }));
+      newEx = {
+        id: prevEx ? prevEx.id : now.toString(),
+        name: newExerciseName.trim(),
+        type: 'drop-set',
+        sets: dsSetsCount,
+        dropSetSets: dsSetsCount,
+        setTypes: Array(dsSetsCount).fill('drop-set'),
+        dropSetSegments: cleanedDropSegments,
+        targetReps: Array(dsSetsCount).fill(cleanedDropSegments[0]?.reps || '8-10'),
+        restTime: parseInt(newRestInput) || 60,
+        completedSets: 0,
+        prev: prevEx ? prevEx.prev : (enrichedDraft?.prev || 'No previous data'),
+        ...(prevEx?.lastWeight !== undefined ? { lastWeight: prevEx.lastWeight } : (enrichedDraft?.lastWeight !== undefined ? { lastWeight: enrichedDraft.lastWeight } : {})),
+        ...(prevEx?.previousLoggedSets !== undefined ? { previousLoggedSets: prevEx.previousLoggedSets } : (enrichedDraft?.previousLoggedSets !== undefined ? { previousLoggedSets: enrichedDraft.previousLoggedSets } : {})),
+        notes: resolvedNote,
+        ...(newNoteInput.trim() !== '' ? { noteUpdatedAt: now } : (prevEx?.noteUpdatedAt ? { noteUpdatedAt: prevEx.noteUpdatedAt } : {})),
+        completed: false
+      };
     } else {
-      const { normalReps: parsedTargetSets, inlineRpCount } = parseSetsWithRestPause(newSetsInput);
+      const { normalReps: parsedTargetSets, inlineRpCount, inlineDsCount } = parseSetsWithRestPause(newSetsInput);
       const addedRpCount = hasAddedRp
         ? (parseInt(newAddedRpSetsInput, 10) || inlineRpCount || 1)
         : inlineRpCount;
+      const addedDsCount = hasAddedDs
+        ? (parseInt(newAddedDsSetsInput, 10) || inlineDsCount || 1)
+        : inlineDsCount;
 
-      if (parsedTargetSets.length === 0 && addedRpCount === 0) {
-        Alert.alert('Error', 'Please enter a valid sets format (e.g., "3x10" or "10 + 10 + 1 rest-pause")');
+      if (parsedTargetSets.length === 0 && addedRpCount === 0 && addedDsCount === 0) {
+        Alert.alert('Error', 'Please enter a valid sets format (e.g., "3x10" or "10 + 10 + 1 drop-set")');
         return;
       }
 
@@ -207,21 +292,34 @@ export default function CreateWorkoutScreen() {
         reps: (seg.reps || '').trim() || '6-8',
         rest: idx < rpSegments.length - 1 ? ((seg.rest || '').trim() || '15-20') : ''
       }));
+      const cleanedDropSegments = dropSegments.map((seg, idx) => ({
+        reps: (seg.reps || '').trim() || '8-10',
+        drop: idx === 0 ? '' : ((seg.drop || '').trim() || '-20%')
+      }));
 
-      const totalSetsCount = parsedTargetSets.length + addedRpCount;
+      const totalSetsCount = parsedTargetSets.length + addedRpCount + addedDsCount;
       const combinedTargetReps = [
         ...parsedTargetSets,
-        ...Array(addedRpCount).fill(cleanedSegments[0]?.reps || '8')
+        ...Array(addedRpCount).fill(cleanedSegments[0]?.reps || '8'),
+        ...Array(addedDsCount).fill(cleanedDropSegments[0]?.reps || '8-10')
       ];
       const setTypes = [
         ...parsedTargetSets.map(() => 'reps'),
-        ...Array(addedRpCount).fill('rest-pause')
+        ...Array(addedRpCount).fill('rest-pause'),
+        ...Array(addedDsCount).fill('drop-set')
       ];
+
+      let resolvedType = 'reps';
+      if (parsedTargetSets.length === 0 && addedRpCount > 0 && addedDsCount === 0) {
+        resolvedType = 'rest-pause';
+      } else if (parsedTargetSets.length === 0 && addedDsCount > 0 && addedRpCount === 0) {
+        resolvedType = 'drop-set';
+      }
 
       newEx = {
         id: prevEx ? prevEx.id : now.toString(),
         name: newExerciseName.trim(),
-        type: parsedTargetSets.length === 0 && addedRpCount > 0 ? 'rest-pause' : 'reps',
+        type: resolvedType,
         sets: totalSetsCount,
         normalTargetReps: parsedTargetSets,
         targetReps: combinedTargetReps,
@@ -229,6 +327,10 @@ export default function CreateWorkoutScreen() {
         ...(addedRpCount > 0 ? {
           restPauseSets: addedRpCount,
           restPauseSegments: cleanedSegments
+        } : {}),
+        ...(addedDsCount > 0 ? {
+          dropSetSets: addedDsCount,
+          dropSetSegments: cleanedDropSegments
         } : {}),
         restTime: parseInt(newRestInput) || 60,
         completedSets: 0,
@@ -257,9 +359,13 @@ export default function CreateWorkoutScreen() {
     setNewSetsInput('3x10');
     setHasAddedRp(false);
     setNewAddedRpSetsInput('1');
+    setHasAddedDs(false);
+    setNewAddedDsSetsInput('1');
     setNewPreSetsInput('');
     setNewRpSetsInput('2');
     setRpSegments(DEFAULT_RP_SEGMENTS);
+    setNewDsSetsInput('2');
+    setDropSegments(DEFAULT_DROP_SEGMENTS);
     setNewTimeInput('5');
     setNewExType('reps');
     setNewRestInput('60');
@@ -276,24 +382,36 @@ export default function CreateWorkoutScreen() {
     if (ex.type === 'time') {
       setNewTimeInput(String((ex.durationSeconds || 300) / 60));
       setHasAddedRp(false);
+      setHasAddedDs(false);
     } else if (ex.type === 'rest-pause') {
       setNewRpSetsInput(String(ex.sets || 2));
       setHasAddedRp(false);
+      setHasAddedDs(false);
       setRpSegments(
         ex.restPauseSegments && ex.restPauseSegments.length > 0
           ? ex.restPauseSegments
           : DEFAULT_RP_SEGMENTS
       );
+    } else if (ex.type === 'drop-set') {
+      setNewDsSetsInput(String(ex.sets || 2));
+      setHasAddedRp(false);
+      setHasAddedDs(false);
+      setDropSegments(
+        ex.dropSetSegments && ex.dropSetSegments.length > 0
+          ? ex.dropSetSegments
+          : DEFAULT_DROP_SEGMENTS
+      );
     } else {
       const rpCount = ex.restPauseSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'rest-pause').length : 0);
+      const dsCount = ex.dropSetSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'drop-set').length : 0);
       const normalList = Array.isArray(ex.normalTargetReps)
         ? ex.normalTargetReps
         : Array.isArray(ex.targetReps)
-          ? ex.targetReps.slice(0, Math.max(0, ex.targetReps.length - rpCount))
+          ? ex.targetReps.slice(0, Math.max(0, ex.targetReps.length - rpCount - dsCount))
           : [];
       if (normalList.length > 0) {
         const allSame = normalList.every(r => r === normalList[0]);
-        if (allSame && rpCount === 0) {
+        if (allSame && rpCount === 0 && dsCount === 0) {
           setNewSetsInput(`${normalList.length}x${normalList[0]}`);
         } else {
           setNewSetsInput(normalList.join(', '));
@@ -310,6 +428,18 @@ export default function CreateWorkoutScreen() {
       } else {
         setHasAddedRp(false);
         setNewAddedRpSetsInput('1');
+      }
+      if (dsCount > 0) {
+        setHasAddedDs(true);
+        setNewAddedDsSetsInput(String(dsCount));
+        setDropSegments(
+          ex.dropSetSegments && ex.dropSetSegments.length > 0
+            ? ex.dropSetSegments
+            : DEFAULT_DROP_SEGMENTS
+        );
+      } else {
+        setHasAddedDs(false);
+        setNewAddedDsSetsInput('1');
       }
     }
     setEditIndex(index);
@@ -406,33 +536,54 @@ export default function CreateWorkoutScreen() {
             <Text style={[styles.typeBtnTxt, newExType === 'rest-pause' && styles.typeBtnTxtActive]}>Rest-Pause</Text>
           </TouchableOpacity>
           <TouchableOpacity 
+            style={[styles.typeBtn, newExType === 'drop-set' && styles.typeBtnActive]} 
+            onPress={() => setNewExType('drop-set')}
+          >
+            <Text style={[styles.typeBtnTxt, newExType === 'drop-set' && styles.typeBtnTxtActive]}>Drop Set</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
             style={[styles.typeBtn, newExType === 'time' && styles.typeBtnActive]} 
             onPress={() => setNewExType('time')}
           >
-            <Text style={[styles.typeBtnTxt, newExType === 'time' && styles.typeBtnTxtActive]}>Timed (Chrono)</Text>
+            <Text style={[styles.typeBtnTxt, newExType === 'time' && styles.typeBtnTxtActive]}>Timed</Text>
           </TouchableOpacity>
         </View>
 
         {newExType === 'reps' ? (
           <>
-            <Text style={styles.label}>Sets & Reps (e.g. 2x10, 1x5 ou 10 + 10 + 1 rest-pause)</Text>
+            <Text style={styles.label}>Sets & Reps (e.g. 2x10, 1x5 ou 10 + 10 + 1 drop-set)</Text>
             <TextInput 
               style={styles.input} 
               value={newSetsInput} 
               onChangeText={setNewSetsInput} 
               placeholder="e.g. 10,10,5 or 3x10"
             />
-            {!(hasAddedRp || parseSetsWithRestPause(newSetsInput).inlineRpCount > 0) ? (
-              <TouchableOpacity
-                style={styles.addRpToSetsBtn}
-                onPress={() => {
-                  setHasAddedRp(true);
-                  setNewAddedRpSetsInput('1');
-                }}
-              >
-                <Text style={styles.addRpToSetsTxt}>+ AJOUTER SÉRIE REST-PAUSE</Text>
-              </TouchableOpacity>
-            ) : (
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+              {!(hasAddedRp || parseSetsWithRestPause(newSetsInput).inlineRpCount > 0) && (
+                <TouchableOpacity
+                  style={[styles.addRpToSetsBtn, { flex: 1, marginBottom: 0 }]}
+                  onPress={() => {
+                    setHasAddedRp(true);
+                    setNewAddedRpSetsInput('1');
+                  }}
+                >
+                  <Text style={styles.addRpToSetsTxt}>+ SÉRIE REST-PAUSE</Text>
+                </TouchableOpacity>
+              )}
+              {!(hasAddedDs || parseSetsWithRestPause(newSetsInput).inlineDsCount > 0) && (
+                <TouchableOpacity
+                  style={[styles.addDsToSetsBtn, { flex: 1, marginBottom: 0 }]}
+                  onPress={() => {
+                    setHasAddedDs(true);
+                    setNewAddedDsSetsInput('1');
+                  }}
+                >
+                  <Text style={styles.addRpToSetsTxt}>+ SÉRIE DROP SET</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {(hasAddedRp || parseSetsWithRestPause(newSetsInput).inlineRpCount > 0) && (
               <View style={styles.rpBuilderBox}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={[styles.label, { marginBottom: 0 }]}>🔥 Série(s) Rest-Pause ajoutée(s)</Text>
@@ -447,7 +598,7 @@ export default function CreateWorkoutScreen() {
                       }
                     }}
                   >
-                    <Text style={styles.rpDeleteSegTxt}>✕ Retirer Rest-Pause</Text>
+                    <Text style={styles.rpDeleteSegTxt}>✕ Retirer</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -502,18 +653,98 @@ export default function CreateWorkoutScreen() {
                 <TouchableOpacity style={styles.addRpSegBtn} onPress={handleAddRpSegment}>
                   <Text style={styles.addRpSegBtnTxt}>+ AJOUTER REPOS + REPS</Text>
                 </TouchableOpacity>
+              </View>
+            )}
 
-                <View style={styles.rpPreviewBox}>
-                  <Text style={styles.rpPreviewTxt}>
-                    {newExerciseName || 'Exercice'} : {formatMixedSetsSummary(
-                      parseSetsWithRestPause(newSetsInput).normalReps,
-                      hasAddedRp
-                        ? (parseInt(newAddedRpSetsInput, 10) || parseSetsWithRestPause(newSetsInput).inlineRpCount || 1)
-                        : parseSetsWithRestPause(newSetsInput).inlineRpCount,
-                      rpSegments
-                    )}
-                  </Text>
+            {(hasAddedDs || parseSetsWithRestPause(newSetsInput).inlineDsCount > 0) && (
+              <View style={styles.dsBuilderBox}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={[styles.label, { marginBottom: 0 }]}>🔻 Série(s) Drop Set ajoutée(s)</Text>
+                  <TouchableOpacity
+                    style={styles.rpDeleteSegBtn}
+                    onPress={() => {
+                      setHasAddedDs(false);
+                      setNewAddedDsSetsInput('0');
+                      const { normalReps } = parseSetsWithRestPause(newSetsInput);
+                      if (normalReps.length > 0) {
+                        setNewSetsInput(normalReps.join(', '));
+                      }
+                    }}
+                  >
+                    <Text style={styles.rpDeleteSegTxt}>✕ Retirer</Text>
+                  </TouchableOpacity>
                 </View>
+
+                {hasAddedDs && (
+                  <>
+                    <Text style={styles.label}>Nombre de séries de Drop Set à ajouter</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={newAddedDsSetsInput}
+                      onChangeText={setNewAddedDsSetsInput}
+                      placeholder="e.g. 1"
+                      keyboardType="numeric"
+                    />
+                  </>
+                )}
+
+                <Text style={styles.label}>Paliers du Drop Set (Répétitions & Baisse de charge)</Text>
+                {dropSegments.map((seg, idx) => (
+                  <View key={idx} style={styles.rpSegmentCard}>
+                    <View style={styles.rpSegmentRow}>
+                      <Text style={styles.rpSegmentLabel}>
+                        {idx === 0 ? 'Départ (reps) :' : `Drop ${idx} (reps) :`}
+                      </Text>
+                      <TextInput
+                        style={styles.rpSmallInput}
+                        value={seg.reps}
+                        onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
+                        placeholder="ex: 8-10"
+                      />
+                      {dropSegments.length > 1 && (
+                        <TouchableOpacity
+                          style={styles.rpDeleteSegBtn}
+                          onPress={() => handleRemoveDropSegment(idx)}
+                        >
+                          <Text style={styles.rpDeleteSegTxt}>✕</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {idx > 0 && (
+                      <View style={[styles.rpSegmentRow, { marginTop: 8 }]}>
+                        <Text style={styles.dsDropLabel}>Baisse de poids :</Text>
+                        <TextInput
+                          style={styles.rpSmallInput}
+                          value={seg.drop}
+                          onChangeText={(val) => handleUpdateDropSegment(idx, 'drop', val)}
+                          placeholder="ex: -20%"
+                        />
+                      </View>
+                    )}
+                  </View>
+                ))}
+
+                <TouchableOpacity style={styles.addDsSegBtn} onPress={handleAddDropSegment}>
+                  <Text style={styles.addRpSegBtnTxt}>+ AJOUTER UN DROP</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {(hasAddedRp || hasAddedDs || parseSetsWithRestPause(newSetsInput).inlineRpCount > 0 || parseSetsWithRestPause(newSetsInput).inlineDsCount > 0) && (
+              <View style={styles.rpPreviewBox}>
+                <Text style={styles.rpPreviewTxt}>
+                  {newExerciseName || 'Exercice'} : {formatMixedSetsSummary(
+                    parseSetsWithRestPause(newSetsInput).normalReps,
+                    hasAddedRp
+                      ? (parseInt(newAddedRpSetsInput, 10) || parseSetsWithRestPause(newSetsInput).inlineRpCount || 1)
+                      : parseSetsWithRestPause(newSetsInput).inlineRpCount,
+                    rpSegments,
+                    hasAddedDs
+                      ? (parseInt(newAddedDsSetsInput, 10) || parseSetsWithRestPause(newSetsInput).inlineDsCount || 1)
+                      : parseSetsWithRestPause(newSetsInput).inlineDsCount,
+                    dropSegments
+                  )}
+                </Text>
               </View>
             )}
           </>
@@ -573,6 +804,64 @@ export default function CreateWorkoutScreen() {
               </Text>
             </View>
           </View>
+        ) : newExType === 'drop-set' ? (
+          <View style={styles.dsBuilderBox}>
+            <Text style={styles.label}>Nombre de séries de Drop Set</Text>
+            <TextInput
+              style={styles.input}
+              value={newDsSetsInput}
+              onChangeText={setNewDsSetsInput}
+              placeholder="e.g. 2"
+              keyboardType="numeric"
+            />
+
+            <Text style={styles.label}>Paliers du Drop Set (Répétitions & Baisse de charge)</Text>
+            {dropSegments.map((seg, idx) => (
+              <View key={idx} style={styles.rpSegmentCard}>
+                <View style={styles.rpSegmentRow}>
+                  <Text style={styles.rpSegmentLabel}>
+                    {idx === 0 ? 'Départ (reps) :' : `Drop ${idx} (reps) :`}
+                  </Text>
+                  <TextInput
+                    style={styles.rpSmallInput}
+                    value={seg.reps}
+                    onChangeText={(val) => handleUpdateDropSegment(idx, 'reps', val)}
+                    placeholder="ex: 8-10"
+                  />
+                  {dropSegments.length > 1 && (
+                    <TouchableOpacity
+                      style={styles.rpDeleteSegBtn}
+                      onPress={() => handleRemoveDropSegment(idx)}
+                    >
+                      <Text style={styles.rpDeleteSegTxt}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {idx > 0 && (
+                  <View style={[styles.rpSegmentRow, { marginTop: 8 }]}>
+                    <Text style={styles.dsDropLabel}>Baisse de poids :</Text>
+                    <TextInput
+                      style={styles.rpSmallInput}
+                      value={seg.drop}
+                      onChangeText={(val) => handleUpdateDropSegment(idx, 'drop', val)}
+                      placeholder="ex: -20%"
+                    />
+                  </View>
+                )}
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addDsSegBtn} onPress={handleAddDropSegment}>
+              <Text style={styles.addRpSegBtnTxt}>+ AJOUTER UN DROP</Text>
+            </TouchableOpacity>
+
+            <View style={styles.rpPreviewBox}>
+              <Text style={styles.rpPreviewTxt}>
+                {newDsSetsInput || '2'} séries de drop set = {newExerciseName || 'Exercice'} : {formatDropSetSegments(dropSegments)}
+              </Text>
+            </View>
+          </View>
         ) : (
           <>
             <Text style={styles.label}>Duration (minutes)</Text>
@@ -622,14 +911,20 @@ export default function CreateWorkoutScreen() {
                 <Text style={styles.exDetails}>
                   🔥 {ex.sets} séries de rest-pause : {formatRestPauseSegments(ex.restPauseSegments)} • {ex.restTime || 60}s Rest
                 </Text>
-              ) : (ex.restPauseSets && ex.restPauseSets > 0) || (Array.isArray(ex.setTypes) && ex.setTypes.includes('rest-pause')) ? (
+              ) : ex.type === 'drop-set' ? (
+                <Text style={styles.exDetails}>
+                  🔻 {ex.sets} séries de drop set : {formatDropSetSegments(ex.dropSetSegments)} • {ex.restTime || 60}s Rest
+                </Text>
+              ) : (ex.restPauseSets && ex.restPauseSets > 0) || (ex.dropSetSets && ex.dropSetSets > 0) || (Array.isArray(ex.setTypes) && (ex.setTypes.includes('rest-pause') || ex.setTypes.includes('drop-set'))) ? (
                 <Text style={styles.exDetails}>
                   🔥 {formatMixedSetsSummary(
                     Array.isArray(ex.normalTargetReps)
                       ? ex.normalTargetReps
-                      : (ex.targetReps || []).slice(0, Math.max(0, (ex.targetReps || []).length - (ex.restPauseSets || 1))),
-                    ex.restPauseSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'rest-pause').length : 1),
-                    ex.restPauseSegments
+                      : (ex.targetReps || []).slice(0, Math.max(0, (ex.targetReps || []).length - (ex.restPauseSets || 0) - (ex.dropSetSets || 0))),
+                    ex.restPauseSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'rest-pause').length : 0),
+                    ex.restPauseSegments,
+                    ex.dropSetSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'drop-set').length : 0),
+                    ex.dropSetSegments
                   )} • {ex.restTime || 60}s Rest
                 </Text>
               ) : (
@@ -684,8 +979,12 @@ const styles = StyleSheet.create({
   typeBtnTxt: { fontSize: 13, fontWeight: 'bold', color: '#666', textAlign: 'center' },
   typeBtnTxtActive: { color: '#0bc0af' },
   addRpToSetsBtn: { backgroundColor: '#ff9800', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
-  addRpToSetsTxt: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  addDsToSetsBtn: { backgroundColor: '#7b1fa2', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
+  addRpToSetsTxt: { color: '#fff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
   rpBuilderBox: { marginBottom: 10 },
+  dsBuilderBox: { marginBottom: 10, backgroundColor: '#f3e5f5', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#ce93d8' },
+  dsDropLabel: { fontSize: 13, fontWeight: 'bold', color: '#7b1fa2', flex: 1 },
+  addDsSegBtn: { backgroundColor: '#7b1fa2', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 4, marginBottom: 10 },
   rpSegmentCard: { backgroundColor: '#fff', padding: 10, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#ccebe8' },
   rpSegmentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rpSegmentLabel: { fontSize: 14, fontWeight: 'bold', color: '#1b2a47', flex: 1 },

@@ -13,6 +13,12 @@ export const formatSetSummary = (s) => {
       .join(' + ');
     return `${s.weight} kg (${chain})`;
   }
+  if (s.isDropSet && Array.isArray(s.drops) && s.drops.length > 0) {
+    const chain = s.drops
+      .map(d => `${d.weight} kg x ${d.reps}`)
+      .join(' → ');
+    return `Drop Set (${chain})`;
+  }
   return `${s.weight} kg x ${s.reps}`;
 };
 

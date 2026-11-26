@@ -138,11 +138,16 @@ export default function ActiveWorkoutScreen() {
     if (ex.type === 'rest-pause') {
       return Array(count).fill('rest-pause');
     }
+    if (ex.type === 'drop-set') {
+      return Array(count).fill('drop-set');
+    }
     const rpCount = ex.restPauseSets || 0;
-    const normalCount = Math.max(0, count - rpCount);
+    const dsCount = ex.dropSetSets || 0;
+    const normalCount = Math.max(0, count - rpCount - dsCount);
     return [
       ...Array(normalCount).fill('reps'),
-      ...Array(rpCount).fill('rest-pause')
+      ...Array(rpCount).fill('rest-pause'),
+      ...Array(dsCount).fill('drop-set')
     ];
   };
 
@@ -150,7 +155,7 @@ export default function ActiveWorkoutScreen() {
     const updated = exercises.map((ex, idx) => {
       if (idx !== activeExIndex) return ex;
       const baseSetTypes = getExerciseSetTypes(ex);
-      const addedType = ex.type === 'rest-pause' ? 'rest-pause' : 'reps';
+      const addedType = ex.type === 'rest-pause' ? 'rest-pause' : ex.type === 'drop-set' ? 'drop-set' : 'reps';
       const setTypes = [...baseSetTypes, addedType];
       const lastNormalRep =
         Array.isArray(ex.normalTargetReps) && ex.normalTargetReps.length > 0
@@ -202,6 +207,37 @@ export default function ActiveWorkoutScreen() {
     setExercises(updated);
   };
 
+  const handleAddDropSet = () => {
+    const updated = exercises.map((ex, idx) => {
+      if (idx !== activeExIndex) return ex;
+      const baseSetTypes = getExerciseSetTypes(ex);
+      const setTypes = [...baseSetTypes, 'drop-set'];
+      const defaultDropSegments = [
+        { reps: '8-10', drop: '' },
+        { reps: '8-10', drop: '-20%' },
+        { reps: '10-12', drop: '-20%' }
+      ];
+      const dropSetSegments =
+        Array.isArray(ex.dropSetSegments) && ex.dropSetSegments.length > 0
+          ? ex.dropSetSegments
+          : defaultDropSegments;
+      const targetReps = ex.targetReps
+        ? [...ex.targetReps, dropSetSegments[0]?.reps || '8-10']
+        : [dropSetSegments[0]?.reps || '8-10'];
+      const newSets = ex.sets + 1;
+      return {
+        ...ex,
+        sets: newSets,
+        setTypes,
+        dropSetSets: (ex.dropSetSets || 0) + 1,
+        dropSetSegments,
+        targetReps,
+        completed: ex.completedSets >= newSets
+      };
+    });
+    setExercises(updated);
+  };
+
   const handleSkipRest = () => {
     setIsResting(false);
     if (exercises[activeExIndex].completed) {
@@ -222,7 +258,8 @@ export default function ActiveWorkoutScreen() {
             loggedSets: [{
               weight: String(draft.weight),
               reps: String(draft.reps || '10'),
-              ...(draft.isRestPause ? { isRestPause: true, segments: draft.segments } : {})
+              ...(draft.isRestPause ? { isRestPause: true, segments: draft.segments } : {}),
+              ...(draft.isDropSet ? { isDropSet: true, drops: draft.drops } : {})
             }]
           };
         }
@@ -327,6 +364,7 @@ export default function ActiveWorkoutScreen() {
               onLogSet={handleLogSet}
               onAddSet={handleAddSet}
               onAddRestPauseSet={handleAddRestPauseSet}
+              onAddDropSet={handleAddDropSet}
               onDraftChange={(exId, draft) => {
                 draftsRef.current[exId] = draft;
               }}

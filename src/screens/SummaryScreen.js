@@ -17,9 +17,17 @@ export default function SummaryScreen() {
     exercises.forEach(ex => {
       if (ex.loggedSets) {
         ex.loggedSets.forEach(set => {
-          const w = parseFloat(set.weight) || 0;
-          const r = parseFloat(set.reps) || 0;
-          vol += (w * r);
+          if (set.isDropSet && Array.isArray(set.drops) && set.drops.length > 0) {
+            set.drops.forEach(d => {
+              const dw = parseFloat(d.weight) || 0;
+              const dr = parseFloat(d.reps) || 0;
+              vol += (dw * dr);
+            });
+          } else {
+            const w = parseFloat(set.weight) || 0;
+            const r = parseFloat(set.reps) || 0;
+            vol += (w * r);
+          }
         });
       }
     });

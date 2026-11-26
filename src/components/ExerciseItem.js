@@ -18,7 +18,7 @@ const isSetRestPause = (exercise, currentSet) => {
   if (Array.isArray(exercise.setTypes) && exercise.setTypes.length > setIdx) {
     return exercise.setTypes[setIdx] === 'rest-pause';
   }
-  if (exercise.restPauseSets && exercise.restPauseSets > 0) {
+  if (exercise.restPauseSets && exercise.restPauseSets > 0 && !exercise.dropSetSets) {
     const normalCount = Math.max(0, (exercise.sets || 0) - exercise.restPauseSets);
     return setIdx >= normalCount;
   }
@@ -30,6 +30,103 @@ const isSetRestPause = (exercise, currentSet) => {
     return true;
   }
   return false;
+};
+
+const isSetDropSet = (exercise, currentSet) => {
+  if (!exercise) return false;
+  if (exercise.type === 'drop-set') return true;
+  const setIdx = Math.max(0, (currentSet || 1) - 1);
+  if (Array.isArray(exercise.setTypes) && exercise.setTypes.length > setIdx) {
+    return exercise.setTypes[setIdx] === 'drop-set';
+  }
+  if (exercise.dropSetSets && exercise.dropSetSets > 0) {
+    const nonDropCount = Math.max(0, (exercise.sets || 0) - exercise.dropSetSets);
+    return setIdx >= nonDropCount;
+  }
+  if (
+    !Array.isArray(exercise.setTypes) &&
+    Array.isArray(exercise.previousLoggedSets) &&
+    exercise.previousLoggedSets[setIdx]?.isDropSet
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const computeSuggestedDropWeight = (prevW, dropSpec) => {
+  const base = parseFloat(prevW) || 0;
+  if (base <= 0) return '0';
+  const str = String(dropSpec || '-20%').trim();
+  if (str.includes('%')) {
+    const pct = Math.abs(parseFloat(str)) || 20;
+    const raw = base * (1 - pct / 100);
+    return String(Math.max(0, Math.round(raw / 2.5) * 2.5));
+  }
+  const diff = Math.abs(parseFloat(str)) || 5;
+  return String(Math.max(0, base - diff));
+};
+
+const buildInitialDrops = (exercise, currentSet, initialWeight, initialReps) => {
+  const setIdx = Math.max(0, (currentSet || 1) - 1);
+
+  // 1. Previous Drop Set in current session
+  if (exercise.loggedSets && exercise.loggedSets.length > 0) {
+    for (let i = exercise.loggedSets.length - 1; i >= 0; i--) {
+      const logged = exercise.loggedSets[i];
+      if (logged && logged.isDropSet && Array.isArray(logged.drops) && logged.drops.length > 0) {
+        return logged.drops.map(d => ({ ...d }));
+      }
+    }
+  }
+
+  // 2. Previous session Drop Set
+  if (Array.isArray(exercise.previousLoggedSets) && exercise.previousLoggedSets.length > 0) {
+    const exactPrev = exercise.previousLoggedSets[setIdx];
+    const fallbackPrev = exercise.previousLoggedSets.find(
+      s => s && s.isDropSet && Array.isArray(s.drops) && s.drops.length > 0
+    );
+    const prevSet =
+      exactPrev && Array.isArray(exactPrev.drops) && exactPrev.drops.length > 0
+        ? exactPrev
+        : fallbackPrev;
+    if (prevSet && Array.isArray(prevSet.drops) && prevSet.drops.length > 0) {
+      return prevSet.drops.map((d, idx) => {
+        const cfg = Array.isArray(exercise.dropSetSegments) ? exercise.dropSetSegments[idx] : null;
+        return {
+          weight: String(d.weight ?? initialWeight ?? '0'),
+          reps: String(d.reps || extractNumeric(cfg?.reps, '8')),
+          targetReps: cfg?.reps || d.targetReps || '',
+          dropHint: cfg?.drop || d.dropHint || ''
+        };
+      });
+    }
+  }
+
+  // 3. Configured dropSetSegments
+  if (Array.isArray(exercise.dropSetSegments) && exercise.dropSetSegments.length > 0) {
+    let runningWeight = String(initialWeight || '0');
+    return exercise.dropSetSegments.map((seg, idx) => {
+      if (idx > 0) {
+        runningWeight = computeSuggestedDropWeight(runningWeight, seg.drop || '-20%');
+      }
+      return {
+        weight: runningWeight,
+        reps: extractNumeric(seg.reps, idx === 0 ? '8' : '10'),
+        targetReps: seg.reps || '',
+        dropHint: seg.drop || ''
+      };
+    });
+  }
+
+  // 4. Default Drop Set
+  const w0 = String(initialWeight || '0');
+  const w1 = computeSuggestedDropWeight(w0, '-20%');
+  const w2 = computeSuggestedDropWeight(w1, '-20%');
+  return [
+    { weight: w0, reps: String(extractNumeric(initialReps, '8')), targetReps: '8-10', dropHint: '' },
+    { weight: w1, reps: '10', targetReps: '8-10', dropHint: '-20%' },
+    { weight: w2, reps: '12', targetReps: '10-12', dropHint: '-20%' }
+  ];
 };
 
 const buildInitialSegments = (exercise, currentSet, initialReps) => {
@@ -102,12 +199,15 @@ export default function ExerciseItem({
   onLogSet,
   onAddSet,
   onAddRestPauseSet,
+  onAddDropSet,
   onDraftChange
 }) {
   const [weight, setWeight] = useState(String(initialWeight));
   const [reps, setReps] = useState(String(extractNumeric(initialReps, '10')));
   const [segments, setSegments] = useState(() => buildInitialSegments(exercise, currentSet, initialReps));
   const [isRestPause, setIsRestPause] = useState(() => isSetRestPause(exercise, currentSet));
+  const [drops, setDrops] = useState(() => buildInitialDrops(exercise, currentSet, initialWeight, initialReps));
+  const [isDropSet, setIsDropSet] = useState(() => isSetDropSet(exercise, currentSet));
 
   // Micro-rest countdown state for Rest-Pause
   const [activeTimerIdx, setActiveTimerIdx] = useState(null);
@@ -120,9 +220,12 @@ export default function ExerciseItem({
     const initSegs = buildInitialSegments(exercise, currentSet, initialReps);
     setSegments(initSegs);
     setIsRestPause(isSetRestPause(exercise, currentSet));
+    const initDrops = buildInitialDrops(exercise, currentSet, initialWeight, initialReps);
+    setDrops(initDrops);
+    setIsDropSet(isSetDropSet(exercise, currentSet));
     setActiveTimerIdx(null);
     setMicroSeconds(0);
-  }, [exercise.id, currentSet, initialWeight, initialReps, exercise.sets, exercise.restPauseSets]);
+  }, [exercise.id, currentSet, initialWeight, initialReps, exercise.sets, exercise.restPauseSets, exercise.dropSetSets]);
 
   useEffect(() => {
     let interval = null;
@@ -163,11 +266,19 @@ export default function ExerciseItem({
           isRestPause: true,
           segments
         });
+      } else if (isDropSet) {
+        const totalDropReps = drops.reduce((acc, d) => acc + (parseInt(d.reps) || 0), 0);
+        onDraftChange(exercise.id, {
+          weight: String(drops[0]?.weight || weight || '0'),
+          reps: String(totalDropReps || 10),
+          isDropSet: true,
+          drops
+        });
       } else {
         onDraftChange(exercise.id, { weight, reps });
       }
     }
-  }, [exercise.id, weight, reps, isRestPause, segments]);
+  }, [exercise.id, weight, reps, isRestPause, segments, isDropSet, drops]);
 
   const adjustValue = (setter, value, amount) => {
     const num = parseFloat(value) || 0;
@@ -195,6 +306,7 @@ export default function ExerciseItem({
   const handleAddRestPauseSegment = () => {
     if (!isRestPause) {
       setIsRestPause(true);
+      setIsDropSet(false);
       setSegments([
         { reps: reps || '8', targetReps: '', rest: '20', targetRest: '15-20' },
         { reps: '4', targetReps: '', rest: '', targetRest: '' }
@@ -216,6 +328,50 @@ export default function ExerciseItem({
     setSegments(filtered);
     if (filtered.length === 1 && exercise.type !== 'rest-pause') {
       setIsRestPause(false);
+      setReps(filtered[0].reps || '10');
+    }
+  };
+
+  const updateDrop = (idx, field, val) => {
+    setDrops(prev => prev.map((d, i) => (i === idx ? { ...d, [field]: val } : d)));
+  };
+
+  const adjustDropField = (idx, field, delta) => {
+    setDrops(prev =>
+      prev.map((d, i) => {
+        if (i !== idx) return d;
+        const curr = parseFloat(d[field]) || 0;
+        return { ...d, [field]: String(Math.max(0, curr + delta)) };
+      })
+    );
+  };
+
+  const handleAddDropPalier = () => {
+    if (!isDropSet) {
+      setIsDropSet(true);
+      setIsRestPause(false);
+      const w0 = weight || '0';
+      const w1 = computeSuggestedDropWeight(w0, '-20%');
+      setDrops([
+        { weight: w0, reps: reps || '8', targetReps: '', dropHint: '' },
+        { weight: w1, reps: '10', targetReps: '', dropHint: '-20%' }
+      ]);
+      return;
+    }
+    setDrops(prev => {
+      const lastW = prev.length > 0 ? prev[prev.length - 1].weight : weight;
+      const nextW = computeSuggestedDropWeight(lastW, '-20%');
+      return [...prev, { weight: nextW, reps: '10', targetReps: '', dropHint: '-20%' }];
+    });
+  };
+
+  const handleRemoveDropPalier = (idx) => {
+    if (drops.length <= 1) return;
+    const filtered = drops.filter((_, i) => i !== idx);
+    setDrops(filtered);
+    if (filtered.length === 1 && exercise.type !== 'drop-set') {
+      setIsDropSet(false);
+      setWeight(filtered[0].weight || weight);
       setReps(filtered[0].reps || '10');
     }
   };
@@ -244,6 +400,16 @@ export default function ExerciseItem({
         segments,
         summary
       });
+    } else if (isDropSet) {
+      const totalDropReps = drops.reduce((acc, d) => acc + (parseInt(d.reps) || 0), 0);
+      const summary = drops.map(d => `${d.weight} kg x ${d.reps}`).join(' → ');
+      onLogSet({
+        weight: String(drops[0]?.weight || weight || '0'),
+        reps: String(totalDropReps),
+        isDropSet: true,
+        drops,
+        summary
+      });
     } else {
       onLogSet({ weight, reps });
     }
@@ -253,7 +419,7 @@ export default function ExerciseItem({
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.label}>
-          {isRestPause ? 'SÉRIE REST-PAUSE :' : 'CURRENT EXERCISE :'}
+          {isRestPause ? 'SÉRIE REST-PAUSE :' : isDropSet ? 'SÉRIE DROP SET :' : 'CURRENT EXERCISE :'}
         </Text>
         <Text style={styles.title}>{exercise.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
@@ -268,12 +434,18 @@ export default function ExerciseItem({
               <Text style={styles.addSetBtnTxt}>+ 1 REST-PAUSE</Text>
             </TouchableOpacity>
           )}
+          {onAddDropSet && (
+            <TouchableOpacity style={styles.addDsSetBtn} onPress={onAddDropSet}>
+              <Text style={styles.addSetBtnTxt}>+ 1 DROP SET</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {totalSets > 0 && (
           <View style={styles.sequenceRow}>
             {Array.from({ length: totalSets }).map((_, idx) => {
               const setNum = idx + 1;
               const setIsRp = isSetRestPause(exercise, setNum);
+              const setIsDs = isSetDropSet(exercise, setNum);
               const isCurrent = setNum === currentSet;
               const isDone = setNum < currentSet;
               const targetVal = Array.isArray(exercise.targetReps) ? exercise.targetReps[idx] : 10;
@@ -282,7 +454,7 @@ export default function ExerciseItem({
                   key={idx}
                   style={[
                     styles.seqBadge,
-                    isCurrent && (setIsRp ? styles.seqBadgeActiveRp : styles.seqBadgeActive),
+                    isCurrent && (setIsRp ? styles.seqBadgeActiveRp : setIsDs ? styles.seqBadgeActiveDs : styles.seqBadgeActive),
                     isDone && styles.seqBadgeDone
                   ]}
                 >
@@ -293,7 +465,7 @@ export default function ExerciseItem({
                     ]}
                   >
                     {isDone ? '✓ ' : ''}
-                    {setIsRp ? `S${setNum}: Rest-Pause` : `S${setNum}: ${targetVal || 10} reps`}
+                    {setIsRp ? `S${setNum}: Rest-Pause` : setIsDs ? `S${setNum}: Drop Set` : `S${setNum}: ${targetVal || 10} reps`}
                   </Text>
                 </View>
               );
@@ -405,6 +577,81 @@ export default function ExerciseItem({
             <Text style={styles.addRpBtnTxt}>+ AJOUTER REPOS + REPS</Text>
           </TouchableOpacity>
         </View>
+      ) : isDropSet ? (
+        <View style={styles.rpContainer}>
+          <Text style={styles.dsSectionTitle}>PALIERS DROP SET (POIDS & REPS) :</Text>
+          {drops.map((d, idx) => (
+            <View key={idx} style={styles.dsPalierCard}>
+              <View style={styles.rpPalierHeader}>
+                <Text style={styles.dsPalierTitle}>
+                  {idx === 0 ? 'Départ' : `Drop ${idx}`}
+                  {d.dropHint ? ` (${d.dropHint})` : ''}
+                  {d.targetReps ? ` • cible: ${d.targetReps} reps` : ''}
+                </Text>
+                {drops.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.rpRemoveBtn}
+                    onPress={() => handleRemoveDropPalier(idx)}
+                  >
+                    <Text style={styles.rpRemoveTxt}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={[styles.rpStepperRow, { marginBottom: 8 }]}>
+                <Text style={styles.rpFieldLabel}>Poids :</Text>
+                <View style={[styles.stepper, { flex: 1 }]}>
+                  <TouchableOpacity
+                    onPress={() => adjustDropField(idx, 'weight', -2.5)}
+                    style={styles.smallStepBtn}
+                  >
+                    <Text style={styles.smallStepTxt}>-2.5</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.smallInput}
+                    value={String(d.weight)}
+                    onChangeText={(v) => updateDrop(idx, 'weight', v)}
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    onPress={() => adjustDropField(idx, 'weight', 2.5)}
+                    style={styles.smallStepBtn}
+                  >
+                    <Text style={styles.smallStepTxt}>+2.5</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.rpStepperRow}>
+                <Text style={styles.rpFieldLabel}>Reps :</Text>
+                <View style={[styles.stepper, { flex: 1 }]}>
+                  <TouchableOpacity
+                    onPress={() => adjustDropField(idx, 'reps', -1)}
+                    style={styles.smallStepBtn}
+                  >
+                    <Text style={styles.smallStepTxt}>-</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.smallInput}
+                    value={String(d.reps)}
+                    onChangeText={(v) => updateDrop(idx, 'reps', v)}
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    onPress={() => adjustDropField(idx, 'reps', 1)}
+                    style={styles.smallStepBtn}
+                  >
+                    <Text style={styles.smallStepTxt}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addDsBtn} onPress={handleAddDropPalier}>
+            <Text style={styles.addRpBtnTxt}>+ AJOUTER UN DROP</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <>
           <View style={styles.inputsContainer}>
@@ -435,9 +682,14 @@ export default function ExerciseItem({
             </View>
           </View>
 
-          <TouchableOpacity style={styles.addRpBtn} onPress={handleAddRestPauseSegment}>
-            <Text style={styles.addRpBtnTxt}>+ AJOUTER REPOS + REPS (REST-PAUSE)</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            <TouchableOpacity style={[styles.addRpBtn, { flex: 1, marginBottom: 0 }]} onPress={handleAddRestPauseSegment}>
+              <Text style={[styles.addRpBtnTxt, { textAlign: 'center', fontSize: 12 }]}>+ REST-PAUSE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.addDsBtn, { flex: 1, marginBottom: 0 }]} onPress={handleAddDropPalier}>
+              <Text style={[styles.addRpBtnTxt, { textAlign: 'center', fontSize: 12 }]}>+ DROP SET</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
 
@@ -466,11 +718,13 @@ const styles = StyleSheet.create({
   setInfo: { fontSize: 16, color: '#666', fontWeight: 'bold', marginRight: 6 },
   addSetBtn: { backgroundColor: '#0bc0af', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
   addRpSetBtn: { backgroundColor: '#ff9800', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
+  addDsSetBtn: { backgroundColor: '#7b1fa2', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
   addSetBtnTxt: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
   sequenceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 10 },
   seqBadge: { backgroundColor: '#fff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#ccebe8' },
   seqBadgeActive: { backgroundColor: '#0bc0af', borderColor: '#0bc0af' },
   seqBadgeActiveRp: { backgroundColor: '#ff9800', borderColor: '#ff9800' },
+  seqBadgeActiveDs: { backgroundColor: '#7b1fa2', borderColor: '#7b1fa2' },
   seqBadgeDone: { backgroundColor: '#4caf50', borderColor: '#4caf50' },
   seqBadgeTxt: { fontSize: 12, fontWeight: 'bold', color: '#555' },
   seqBadgeTxtActive: { color: '#fff' },
@@ -503,7 +757,11 @@ const styles = StyleSheet.create({
   microTimerBtnActive: { backgroundColor: '#e91e63' },
   microTimerBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
   addRpBtn: { backgroundColor: '#1b2a47', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', marginBottom: 12 },
+  addDsBtn: { backgroundColor: '#7b1fa2', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', marginBottom: 12 },
   addRpBtnTxt: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  dsSectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#7b1fa2', marginBottom: 8 },
+  dsPalierCard: { backgroundColor: '#fff', borderRadius: 12, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#ce93d8' },
+  dsPalierTitle: { fontSize: 14, fontWeight: 'bold', color: '#7b1fa2' },
   previousData: { textAlign: 'center', fontSize: 14, color: '#666', marginBottom: 14, fontStyle: 'italic' },
   logBtn: { backgroundColor: '#4caf50', padding: 16, borderRadius: 14, alignItems: 'center' },
   logBtnTxt: { color: '#fff', fontSize: 18, fontWeight: 'bold' }

@@ -14,6 +14,11 @@ const formatRpChain = (segments) => {
     .join(' + ');
 };
 
+const formatDsChain = (drops) => {
+  if (!Array.isArray(drops) || drops.length === 0) return '';
+  return drops.map(d => `${d.weight} kg x ${d.reps}`).join(' → ');
+};
+
 export default function HistoryDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -46,6 +51,21 @@ export default function HistoryDetailsScreen() {
             ...set,
             reps: String(sumReps),
             summary: formatRpChain(set.segments)
+          };
+        }
+        if (set.isDropSet && Array.isArray(set.drops) && set.drops.length > 0) {
+          let sumReps = 0;
+          set.drops.forEach(d => {
+            const dw = parseFloat(d.weight) || 0;
+            const dr = parseInt(d.reps) || 0;
+            sumReps += dr;
+            newVolume += dw * dr;
+          });
+          return {
+            ...set,
+            weight: String(set.drops[0]?.weight || set.weight || '0'),
+            reps: String(sumReps),
+            summary: formatDsChain(set.drops)
           };
         }
         newVolume += (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0);
@@ -147,6 +167,45 @@ export default function HistoryDetailsScreen() {
                         </Text>
                       )}
                     </View>
+                  ) : set.isDropSet && Array.isArray(set.drops) && set.drops.length > 0 ? (
+                    <View style={styles.rpSetBox}>
+                      <Text style={styles.setLabel}>Set {sIdx + 1} (Drop Set):</Text>
+                      {isEditing ? (
+                        <View style={{ marginTop: 6 }}>
+                          {set.drops.map((d, dIdx) => (
+                            <View key={dIdx} style={[styles.editInputsRow, { marginTop: 4, flexWrap: 'wrap' }]}>
+                              <Text style={styles.setLabel}>{dIdx === 0 ? 'Départ:' : `Drop ${dIdx}:`} </Text>
+                              <TextInput
+                                style={styles.editInput}
+                                keyboardType="numeric"
+                                value={String(d.weight)}
+                                onChangeText={(val) => {
+                                  const newExercises = [...editedItem.exercises];
+                                  newExercises[idx].loggedSets[sIdx].drops[dIdx].weight = val;
+                                  setEditedItem({ ...editedItem, exercises: newExercises });
+                                }}
+                              />
+                              <Text style={styles.setLabel}> kg × </Text>
+                              <TextInput
+                                style={styles.editInput}
+                                keyboardType="numeric"
+                                value={String(d.reps)}
+                                onChangeText={(val) => {
+                                  const newExercises = [...editedItem.exercises];
+                                  newExercises[idx].loggedSets[sIdx].drops[dIdx].reps = val;
+                                  setEditedItem({ ...editedItem, exercises: newExercises });
+                                }}
+                              />
+                              <Text style={styles.setLabel}> reps</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.setDetail}>
+                          {formatDsChain(set.drops)}
+                        </Text>
+                      )}
+                    </View>
                   ) : (
                     <View style={styles.setRow}>
                       <Text style={styles.setLabel}>Set {sIdx + 1}:</Text>
@@ -219,7 +278,7 @@ export default function HistoryDetailsScreen() {
             )}
 
             {isEditing && ex.type !== 'time' && (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                 <TouchableOpacity
                   style={{ backgroundColor: '#0bc0af', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
                   onPress={() => {
@@ -255,6 +314,32 @@ export default function HistoryDetailsScreen() {
                   }}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>+ 1 Rest-Pause</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#7b1fa2', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
+                  onPress={() => {
+                    const newExercises = [...editedItem.exercises];
+                    const currentLogged = newExercises[idx].loggedSets || [];
+                    const lastWeight = parseFloat(currentLogged.length > 0 ? currentLogged[currentLogged.length - 1].weight : '40') || 40;
+                    const w1 = Math.max(0, Math.round((lastWeight * 0.8) / 2.5) * 2.5);
+                    const w2 = Math.max(0, Math.round((w1 * 0.8) / 2.5) * 2.5);
+                    newExercises[idx].loggedSets = [
+                      ...currentLogged,
+                      {
+                        weight: String(lastWeight),
+                        reps: '30',
+                        isDropSet: true,
+                        drops: [
+                          { weight: String(lastWeight), reps: '8' },
+                          { weight: String(w1), reps: '10' },
+                          { weight: String(w2), reps: '12' }
+                        ]
+                      }
+                    ];
+                    setEditedItem({ ...editedItem, exercises: newExercises });
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>+ 1 Drop Set</Text>
                 </TouchableOpacity>
               </View>
             )}
