@@ -522,6 +522,77 @@ export default function CreateWorkoutScreen() {
     setExercises(exercises.filter(ex => ex.id !== id));
   };
 
+  const getSetWeightLabel = (ex, sIdx, fallbackWeight) => {
+    const tw = Array.isArray(ex.targetWeights) ? ex.targetWeights[sIdx] : '';
+    if (tw !== undefined && String(tw).trim() !== '') return `${String(tw).trim()} kg`;
+    if (fallbackWeight !== undefined && String(fallbackWeight).trim() !== '') return `${String(fallbackWeight).trim()} kg`;
+    const prevSetW = Array.isArray(ex.previousLoggedSets) && ex.previousLoggedSets[sIdx]?.weight;
+    if (prevSetW !== undefined && String(prevSetW).trim() !== '' && String(prevSetW) !== '0') {
+      return `${prevSetW} kg`;
+    }
+    if (ex.lastWeight !== undefined && String(ex.lastWeight).trim() !== '' && String(ex.lastWeight) !== '0') {
+      return `${ex.lastWeight} kg`;
+    }
+    return '—';
+  };
+
+  const getExerciseSetRows = (ex) => {
+    if (ex.type === 'time') return [];
+    const total = ex.sets || (Array.isArray(ex.targetReps) ? ex.targetReps.length : 0);
+    const rows = [];
+    for (let i = 0; i < total; i++) {
+      const setType = Array.isArray(ex.setTypes) && ex.setTypes[i]
+        ? ex.setTypes[i]
+        : ex.type === 'rest-pause'
+          ? 'rest-pause'
+          : ex.type === 'drop-set'
+            ? 'drop-set'
+            : 'reps';
+
+      if (setType === 'rest-pause') {
+        const wLabel = getSetWeightLabel(ex, i, ex.restPauseWeight);
+        rows.push({
+          label: `Série ${i + 1} (Rest-Pause)`,
+          reps: formatRestPauseSegments(ex.restPauseSegments || DEFAULT_RP_SEGMENTS),
+          weight: wLabel
+        });
+      } else if (setType === 'drop-set') {
+        const dsSegs = ex.dropSetSegments || DEFAULT_DROP_SEGMENTS;
+        rows.push({
+          label: `Série ${i + 1} (Drop Set)`,
+          reps: formatDropSetSegments(dsSegs),
+          weight: dsSegs.some(d => d.weight && String(d.weight).trim() !== '')
+            ? dsSegs.map(d => (d.weight ? `${d.weight}kg` : '—')).join(' → ')
+            : getSetWeightLabel(ex, i)
+        });
+      } else {
+        const repVal = Array.isArray(ex.targetReps) ? (ex.targetReps[i] ?? 10) : 10;
+        rows.push({
+          label: `Série ${i + 1}`,
+          reps: `${repVal} reps`,
+          weight: getSetWeightLabel(ex, i)
+        });
+      }
+    }
+    return rows;
+  };
+
+  const getSummaryRepsLabel = (ex) => {
+    if (ex.type === 'time') {
+      return `⏱ ${Math.floor((ex.durationSeconds || 0) / 60)}m ${(ex.durationSeconds || 0) % 60}s`;
+    }
+    if (ex.type === 'rest-pause') {
+      return `${formatRestPauseSegments(ex.restPauseSegments)}${ex.restPauseWeight ? ` (${ex.restPauseWeight}kg)` : ''}`;
+    }
+    if (ex.type === 'drop-set') {
+      return formatDropSetSegments(ex.dropSetSegments);
+    }
+    const rows = getExerciseSetRows(ex);
+    return rows
+      .map(r => (r.weight !== '—' ? `${r.reps.replace(' reps', '')}×${r.weight}` : r.reps))
+      .join(', ');
+  };
+
   const handleInlineNoteChange = (index, text) => {
     const now = Date.now();
     const updated = exercises.map((ex, idx) => {
@@ -1052,44 +1123,57 @@ export default function CreateWorkoutScreen() {
       <View style={styles.listSection}>
         <Text style={styles.sectionTitle}>Exercises List</Text>
         {exercises.length === 0 && <Text style={styles.emptyText}>No exercises added yet.</Text>}
-        {exercises.map((ex, index) => (
+
+        {exercises.length > 0 && (
+          <View style={styles.summaryTableCard}>
+            <Text style={styles.summaryTableTitle}>📋 Résumé de la séance</Text>
+            <View style={styles.summaryHeaderRow}>
+              <Text style={[styles.summaryHeaderCell, { flex: 2.2 }]}>Exercice</Text>
+              <Text style={[styles.summaryHeaderCell, { flex: 0.8, textAlign: 'center' }]}>Séries</Text>
+              <Text style={[styles.summaryHeaderCell, { flex: 2.4 }]}>Répétitions & Poids</Text>
+            </View>
+            {exercises.map((ex, idx) => (
+              <View
+                key={`sum-${ex.id || idx}`}
+                style={[styles.summaryRow, idx % 2 === 1 && styles.summaryRowAlt]}
+              >
+                <Text style={[styles.summaryCellName, { flex: 2.2 }]}>{idx + 1}. {ex.name}</Text>
+                <Text style={[styles.summaryCellSets, { flex: 0.8, textAlign: 'center' }]}>
+                  {ex.type === 'time' ? '⏱' : ex.sets || 0}
+                </Text>
+                <Text style={[styles.summaryCellReps, { flex: 2.4 }]}>
+                  {getSummaryRepsLabel(ex)}
+                </Text>
+              </View>
+            ))}
+            <View style={styles.summaryFooterRow}>
+              <Text style={styles.summaryFooterTxt}>
+                Total : {exercises.length} exercice{exercises.length > 1 ? 's' : ''} •{' '}
+                {exercises.reduce((acc, ex) => acc + (ex.type === 'time' ? 1 : (ex.sets || 0)), 0)} série(s)
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {exercises.map((ex, index) => {
+          const setRows = getExerciseSetRows(ex);
+          return (
           <View key={ex.id} style={styles.exCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.exName}>{index + 1}. {ex.name}</Text>
               {ex.type === 'time' ? (
                 <Text style={styles.exDetails}>⏱ {Math.floor((ex.durationSeconds || 0)/60)}m {(ex.durationSeconds || 0)%60}s • {ex.restTime || 60}s Rest</Text>
-              ) : ex.type === 'rest-pause' ? (
-                <Text style={styles.exDetails}>
-                  🔥 {ex.sets} séries de rest-pause{ex.restPauseWeight ? ` @ ${ex.restPauseWeight} kg` : ''} : {formatRestPauseSegments(ex.restPauseSegments)} • {ex.restTime || 60}s Rest
-                </Text>
-              ) : ex.type === 'drop-set' ? (
-                <Text style={styles.exDetails}>
-                  🔻 {ex.sets} séries de drop set : {formatDropSetSegments(ex.dropSetSegments)} • {ex.restTime || 60}s Rest
-                </Text>
-              ) : (ex.restPauseSets && ex.restPauseSets > 0) || (ex.dropSetSets && ex.dropSetSets > 0) || (Array.isArray(ex.setTypes) && (ex.setTypes.includes('rest-pause') || ex.setTypes.includes('drop-set'))) ? (
-                <Text style={styles.exDetails}>
-                  🔥 {formatMixedSetsSummary(
-                    Array.isArray(ex.normalTargetReps)
-                      ? ex.normalTargetReps
-                      : (ex.targetReps || []).slice(0, Math.max(0, (ex.targetReps || []).length - (ex.restPauseSets || 0) - (ex.dropSetSets || 0))),
-                    ex.restPauseSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'rest-pause').length : 0),
-                    ex.restPauseSegments,
-                    ex.dropSetSets || (Array.isArray(ex.setTypes) ? ex.setTypes.filter(t => t === 'drop-set').length : 0),
-                    ex.dropSetSegments
-                  )} • {ex.restTime || 60}s Rest
-                </Text>
               ) : (
-                <Text style={styles.exDetails}>
-                  {ex.targetReps
-                    ? ex.targetReps
-                        .map((r, sIdx) => {
-                          const tw = Array.isArray(ex.targetWeights) ? ex.targetWeights[sIdx] : '';
-                          return tw && String(tw).trim() !== '' ? `${r} (${tw}kg)` : String(r);
-                        })
-                        .join(', ')
-                    : ''}{' '}
-                  Reps ({ex.sets} Sets) • {ex.restTime || 60}s Rest
-                </Text>
+                <View style={styles.exSetsTable}>
+                  {setRows.map((row, rIdx) => (
+                    <View key={rIdx} style={styles.exSetItemRow}>
+                      <Text style={styles.exSetItemLabel}>{row.label}</Text>
+                      <Text style={styles.exSetItemReps}>{row.reps}</Text>
+                      <Text style={styles.exSetItemWeight}>{row.weight}</Text>
+                    </View>
+                  ))}
+                  <Text style={styles.exRestInfo}>⏱ Repos entre séries : {ex.restTime || 60}s</Text>
+                </View>
               )}
               <TextInput
                 style={styles.inlineNoteInput}
@@ -1108,7 +1192,8 @@ export default function CreateWorkoutScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
+          );
+        })}
       </View>
 
       <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -1167,9 +1252,26 @@ const styles = StyleSheet.create({
   addBtnTxt: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
   listSection: { marginBottom: 20 },
   emptyText: { fontStyle: 'italic', color: '#888', fontSize: 15 },
+  summaryTableCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#0bc0af', elevation: 1 },
+  summaryTableTitle: { fontSize: 15, fontWeight: 'bold', color: '#1b2a47', marginBottom: 8 },
+  summaryHeaderRow: { flexDirection: 'row', backgroundColor: '#1b2a47', paddingVertical: 7, paddingHorizontal: 8, borderRadius: 6, marginBottom: 2 },
+  summaryHeaderCell: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  summaryRow: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', alignItems: 'center' },
+  summaryRowAlt: { backgroundColor: '#f9fdfc' },
+  summaryCellName: { fontSize: 13, fontWeight: 'bold', color: '#1b2a47', paddingRight: 4 },
+  summaryCellSets: { fontSize: 13, fontWeight: 'bold', color: '#0bc0af' },
+  summaryCellReps: { fontSize: 12, color: '#444' },
+  summaryFooterRow: { paddingTop: 8, alignItems: 'flex-end' },
+  summaryFooterTxt: { fontSize: 12, fontWeight: 'bold', color: '#0bc0af' },
   exCard: { flexDirection: 'column', backgroundColor: '#fff', padding: 14, borderRadius: 12, marginBottom: 10, elevation: 1 },
-  exName: { fontSize: 17, fontWeight: 'bold', marginBottom: 6 },
+  exName: { fontSize: 17, fontWeight: 'bold', marginBottom: 6, color: '#1b2a47' },
   exDetails: { fontSize: 14, color: '#666', marginBottom: 8 },
+  exSetsTable: { backgroundColor: '#f8fbfb', borderRadius: 8, padding: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e0f2f1' },
+  exSetItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#eef5f4', gap: 6 },
+  exSetItemLabel: { fontSize: 12, fontWeight: 'bold', color: '#1b2a47', minWidth: 65 },
+  exSetItemReps: { fontSize: 12, color: '#333', flex: 1 },
+  exSetItemWeight: { fontSize: 12, fontWeight: 'bold', color: '#0bc0af', textAlign: 'right', minWidth: 50 },
+  exRestInfo: { fontSize: 11, color: '#777', marginTop: 4, fontStyle: 'italic' },
   inlineNoteInput: { backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 8, fontSize: 14, color: '#333', marginBottom: 10 },
   removeBtn: { padding: 10, backgroundColor: '#ffe6e6', borderRadius: 10, flex: 1, alignItems: 'center', marginLeft: 10 },
   removeBtnTxt: { fontSize: 16, color: '#ff4d4d', fontWeight: 'bold' },
